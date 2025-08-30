@@ -1,12 +1,12 @@
 import { View, Text, StyleSheet } from "react-native";
 
-const NewOffenseComponent = () => {
+export default function ProfileScreen() {
   return (
     <View style={styles.container}>
-      <Text>New Offense Component</Text>
+      <Text>Profile Screen</Text>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -15,5 +15,3 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 });
-
-export default NewOffenseComponent;
