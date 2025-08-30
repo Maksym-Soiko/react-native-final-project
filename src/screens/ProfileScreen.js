@@ -1,9 +1,13 @@
 import { View, Text, StyleSheet } from "react-native";
+import { useContext } from "react";
+import { ThemeContext } from "../context/ThemeContext";
 
-export default function ProfileScreen() {
+const ProfileScreen = () => {
+  const { theme } = useContext(ThemeContext);
+
   return (
-    <View style={styles.container}>
-      <Text>Profile Screen</Text>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={[{ color: theme.text }]}>Profile Screen</Text>
     </View>
   );
 }
@@ -15,3 +19,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 });
+
+export default ProfileScreen;

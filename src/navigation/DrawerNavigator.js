@@ -4,13 +4,20 @@ import TabNavigator from "./TabNavigator";
 import ProfileScreen from "../screens/ProfileScreen";
 import CustomDrawerContent from "../components/common/CustomDrawerContent";
 import { TouchableOpacity } from "react-native";
+import { useContext } from "react";
+import { ThemeContext } from "../context/ThemeContext";
 
 const Drawer = createDrawerNavigator();
 
 export default function DrawerNavigator() {
+  const { theme } = useContext(ThemeContext);
+
   return (
     <Drawer.Navigator
-      drawerContent={(props) => <CustomDrawerContent {...props} />}>
+      drawerContent={(props) => <CustomDrawerContent {...props} />}
+      screenOptions={{
+        drawerStyle: { backgroundColor: theme.background },
+      }}>
       <Drawer.Screen
         name="HomeTabs"
         component={TabNavigator}
@@ -20,16 +27,32 @@ export default function DrawerNavigator() {
             <Ionicons name="home-outline" size={size} color={color} />
           ),
           headerShown: true,
+          headerStyle: { backgroundColor: theme.card },
+          headerTintColor: theme.text,
+          headerLeftContainerStyle: { marginRight: 16 },
           headerLeft: () => (
             <TouchableOpacity
               onPress={() => navigation.toggleDrawer()}
               style={{ marginLeft: 12 }}>
-              <Ionicons name="menu" size={28} color="#333" />
+              <Ionicons name="menu" size={28} color={theme.drawerIcon} />
             </TouchableOpacity>
           ),
-        })}
-      />
-      <Drawer.Screen name="Profile" component={ProfileScreen} />
+        })}/>
+      <Drawer.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={({ navigation }) => ({
+          headerStyle: { backgroundColor: theme.card },
+          headerTintColor: theme.text,
+          headerLeftContainerStyle: { marginRight: 16 },
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.toggleDrawer()}
+              style={{ marginLeft: 12 }}>
+              <Ionicons name="menu" size={28} color={theme.drawerIcon} />
+            </TouchableOpacity>
+          ),
+        })}/>
     </Drawer.Navigator>
   );
 }

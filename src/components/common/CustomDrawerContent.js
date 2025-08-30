@@ -1,91 +1,152 @@
 import { View, Text, Switch, TouchableOpacity, StyleSheet } from "react-native";
-import { DrawerContentScrollView, DrawerItem } from "@react-navigation/drawer";
+import { DrawerContentScrollView } from "@react-navigation/drawer";
 import { Ionicons } from "@expo/vector-icons";
+import { useContext } from "react";
+import { ThemeContext } from "../../context/ThemeContext";
 
 export default function CustomDrawerContent(props) {
+  const { themeName, theme, toggleTheme } = useContext(ThemeContext);
+
   const ITEM_MARGIN = 8;
   const ITEM_HEIGHT = 52;
   const ICON_SIZE = 22;
-  const ICON_COLOR = "#333";
-  const LABEL_COLOR = "#333";
+  const ICON_COLOR = theme.drawerIcon;
+  const LABEL_COLOR = theme.text;
   const LABEL_FONT_SIZE = 16;
-  const LABEL_FONT_WEIGHT = '500';
+  const LABEL_FONT_WEIGHT = "500";
+  const THEME_ICON = themeName === "light" ? "sunny-outline" : "moon-outline";
 
   return (
     <DrawerContentScrollView
       {...props}
-      contentContainerStyle={{ paddingVertical: 8 }}>
-      <DrawerItem
-        label="Profile"
+      contentContainerStyle={[
+        styles.scroll,
+        { backgroundColor: theme.background },
+      ]}>
+      <TouchableOpacity
         onPress={() => props.navigation.navigate("Profile")}
-        icon={() => (
-          <Ionicons name="person-outline" size={ICON_SIZE} color={ICON_COLOR} />
-        )}
-        labelStyle={{ color: LABEL_COLOR, fontSize: LABEL_FONT_SIZE, fontWeight: LABEL_FONT_WEIGHT }}
-        style={{
-          marginVertical: ITEM_MARGIN,
-          height: ITEM_HEIGHT,
-          justifyContent: "center",
-        }}/>
-
-      <View
         style={[
-          styles.drawerItem,
-          { marginVertical: ITEM_MARGIN, height: ITEM_HEIGHT },
+          styles.boxCommon,
+          {
+            marginVertical: ITEM_MARGIN,
+            height: ITEM_HEIGHT,
+            backgroundColor: theme.card,
+            paddingHorizontal: 12,
+            justifyContent: "center",
+          },
         ]}>
-        <Ionicons name="moon-outline" size={ICON_SIZE} color={ICON_COLOR} />
+        <Ionicons name="person-outline" size={ICON_SIZE} color={ICON_COLOR} />
         <Text
           style={[
             styles.drawerLabel,
-            { color: LABEL_COLOR, fontSize: LABEL_FONT_SIZE, fontWeight: LABEL_FONT_WEIGHT },
+            {
+              color: LABEL_COLOR,
+              fontSize: LABEL_FONT_SIZE,
+              fontWeight: LABEL_FONT_WEIGHT,
+            },
           ]}>
-          Theme
+          Profile
         </Text>
-        <Switch value={false} onValueChange={() => {}} />
+      </TouchableOpacity>
+
+      <View
+        style={[
+          styles.boxCommon,
+          {
+            marginVertical: ITEM_MARGIN,
+            height: ITEM_HEIGHT,
+            backgroundColor: theme.card,
+            paddingHorizontal: 12,
+            justifyContent: "center",
+          },
+        ]}>
+        <Ionicons name={THEME_ICON} size={ICON_SIZE} color={ICON_COLOR} />
+        <Text
+          style={[
+            styles.drawerLabel,
+            {
+              color: LABEL_COLOR,
+              fontSize: LABEL_FONT_SIZE,
+              fontWeight: LABEL_FONT_WEIGHT,
+            },
+          ]}>
+          {themeName === "light" ? "Light Theme" : "Dark Theme"}
+        </Text>
+        <Switch value={themeName === "dark"} onValueChange={toggleTheme} />
       </View>
 
       <TouchableOpacity
         style={[
-          styles.drawerItem,
-          { marginVertical: ITEM_MARGIN, height: ITEM_HEIGHT },
-        ]}>
+          styles.boxCommon,
+          {
+            marginVertical: ITEM_MARGIN,
+            height: ITEM_HEIGHT,
+            backgroundColor: theme.card,
+            paddingHorizontal: 12,
+            justifyContent: "center",
+          },
+        ]}
+        onPress={() => {}}>
         <Ionicons name="language-outline" size={ICON_SIZE} color={ICON_COLOR} />
         <Text
           style={[
             styles.drawerLabel,
-            { color: LABEL_COLOR, fontSize: LABEL_FONT_SIZE, fontWeight: LABEL_FONT_WEIGHT },
+            {
+              color: LABEL_COLOR,
+              fontSize: LABEL_FONT_SIZE,
+              fontWeight: LABEL_FONT_WEIGHT,
+            },
           ]}>
           Language
         </Text>
       </TouchableOpacity>
 
-      <DrawerItem
-        label="Logout"
+      <TouchableOpacity
         onPress={() => console.log("Logout pressed")}
-        icon={() => (
-          <Ionicons
-            name="log-out-outline"
-            size={ICON_SIZE}
-            color={ICON_COLOR}/>
-        )}
-        labelStyle={{ color: LABEL_COLOR, fontSize: LABEL_FONT_SIZE, fontWeight: LABEL_FONT_WEIGHT }}
-        style={{
-          marginVertical: ITEM_MARGIN,
-          height: ITEM_HEIGHT,
-          justifyContent: "center",
-        }}/>
+        style={[
+          styles.boxCommon,
+          {
+            marginVertical: ITEM_MARGIN,
+            height: ITEM_HEIGHT,
+            backgroundColor: theme.card,
+            paddingHorizontal: 12,
+            justifyContent: "center",
+          },
+        ]}>
+        <Ionicons name="log-out-outline" size={ICON_SIZE} color={ICON_COLOR} />
+        <Text
+          style={[
+            styles.drawerLabel,
+            {
+              color: LABEL_COLOR,
+              fontSize: LABEL_FONT_SIZE,
+              fontWeight: LABEL_FONT_WEIGHT,
+            },
+          ]}>
+          Logout
+        </Text>
+      </TouchableOpacity>
     </DrawerContentScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    paddingVertical: 8,
+  },
   drawerItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 15,
   },
   drawerLabel: {
     marginLeft: 10,
     flex: 1,
+  },
+  boxCommon: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 12,
+    borderRadius: 20,
+    overflow: "hidden",
   },
 });

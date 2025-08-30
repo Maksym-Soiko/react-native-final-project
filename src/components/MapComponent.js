@@ -1,9 +1,13 @@
 import { View, Text, StyleSheet } from "react-native";
+import { useContext } from "react";
+import { ThemeContext } from "../context/ThemeContext";
 
 const MapComponent = () => {
+  const { theme } = useContext(ThemeContext);
+  
   return (
-    <View style={styles.container}>
-      <Text>Map Component</Text> 
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={{ color: theme.text }}>Map Component</Text>
     </View>
   );
 };
