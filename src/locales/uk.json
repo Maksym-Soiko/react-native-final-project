@@ -1,0 +1,14 @@
+{
+	"home": "Головна",
+	"profile": "Профіль",
+	"language": "Мова",
+	"logout": "Вийти",
+	"dark_mode": "Темний режим",
+	"light_mode": "Світлий режим",
+	"calendar": "Календар",
+	"map": "Карта",
+	"new_offense": "Нове правопорушення",
+	"calendar_component": "Компонент календаря",
+	"map_component": "Компонент карти",
+	"new_offense_component": "Компонент нового правопорушення"
+}

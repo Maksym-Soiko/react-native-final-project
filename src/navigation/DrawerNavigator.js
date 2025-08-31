@@ -6,11 +6,13 @@ import CustomDrawerContent from "../components/common/CustomDrawerContent";
 import { TouchableOpacity } from "react-native";
 import { useContext } from "react";
 import { ThemeContext } from "../context/ThemeContext";
+import { useTranslation } from "react-i18next";
 
 const Drawer = createDrawerNavigator();
 
 export default function DrawerNavigator() {
   const { theme } = useContext(ThemeContext);
+  const { t } = useTranslation();
 
   return (
     <Drawer.Navigator
@@ -22,7 +24,7 @@ export default function DrawerNavigator() {
         name="HomeTabs"
         component={TabNavigator}
         options={({ navigation }) => ({
-          title: "Home",
+          title: t("home", "Home"),
           drawerIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),
@@ -42,6 +44,7 @@ export default function DrawerNavigator() {
         name="Profile"
         component={ProfileScreen}
         options={({ navigation }) => ({
+          title: t("profile", "Profile"),
           headerStyle: { backgroundColor: theme.card },
           headerTintColor: theme.text,
           headerLeftContainerStyle: { marginRight: 16 },

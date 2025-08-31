@@ -4,7 +4,8 @@ import { NavigationContainer } from "@react-navigation/native";
 import DrawerNavigator from "./src/navigation/DrawerNavigator";
 import { ThemeProvider, ThemeContext } from "./src/context/ThemeContext";
 import { StatusBar } from "react-native";
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
+import { loadLanguage } from "./src/i18n";
 
 export default function App() {
   return (
@@ -19,11 +20,16 @@ export default function App() {
 function AppContent() {
   const { themeName, theme } = useContext(ThemeContext);
 
+  useEffect(() => {
+    loadLanguage();
+  }, []);
+
   return (
     <>
       <StatusBar
         barStyle={themeName === "dark" ? "light-content" : "dark-content"}
-        backgroundColor={theme.card} />
+        backgroundColor={theme.card}
+      />
       <NavigationContainer>
         <DrawerNavigator />
       </NavigationContainer>

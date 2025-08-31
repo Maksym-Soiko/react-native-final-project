@@ -5,11 +5,13 @@ import MapComponent from "../components/MapComponent";
 import NewOffenseComponent from "../components/NewOffenseComponent";
 import { useContext } from "react";
 import { ThemeContext } from "../context/ThemeContext";
+import { useTranslation } from "react-i18next";
 
 const Tab = createBottomTabNavigator();
 
 export default function TabNavigator() {
   const { theme } = useContext(ThemeContext);
+  const { t } = useTranslation();
 
   return (
     <Tab.Navigator
@@ -32,9 +34,18 @@ export default function TabNavigator() {
           return <Ionicons name={iconName} size={size} color={color} />;
         },
       })}>
-      <Tab.Screen name="Calendar" component={CalendarComponent} />
-      <Tab.Screen name="Map" component={MapComponent} />
-      <Tab.Screen name="New offense" component={NewOffenseComponent} />
+      <Tab.Screen
+        name="Calendar"
+        component={CalendarComponent}
+        options={{ tabBarLabel: t("calendar", "Calendar") }}/>
+      <Tab.Screen
+        name="Map"
+        component={MapComponent}
+        options={{ tabBarLabel: t("map", "Map") }}/>
+      <Tab.Screen
+        name="New offense"
+        component={NewOffenseComponent}
+        options={{ tabBarLabel: t("new_offense", "New Offense") }}/>
     </Tab.Navigator>
   );
 }

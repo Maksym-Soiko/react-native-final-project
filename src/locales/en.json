@@ -1,0 +1,14 @@
+{
+	"home": "Home",
+	"profile": "Profile",
+	"language": "Language",
+	"logout": "Logout",
+	"dark_mode": "Dark Mode",
+	"light_mode": "Light Mode",
+	"calendar": "Calendar",
+	"map": "Map",
+	"new_offense": "New Offense",
+	"calendar_component": "Calendar Component",
+	"map_component": "Map Component",
+	"new_offense_component": "New Offense Component"
+}
