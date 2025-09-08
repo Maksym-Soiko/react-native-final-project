@@ -2,9 +2,51 @@ import { useContext, useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, FlatList, Alert,
   ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Modal } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { ThemeContext } from "../context/ThemeContext";
 import { useTranslation } from "react-i18next";
 import { initOffensesTable, insertOffense, getAllOffenses, clearOffenses } from "../db/database";
+
+const CLOUDINARY_UPLOAD_URL =
+  "https://api.cloudinary.com/v1_1/dogpvxjku/image/upload";
+const CLOUDINARY_UPLOAD_PRESET = "project_upload_presset";
+
+async function uploadImageToCloudinary(fileUri) {
+  if (!fileUri) return null;
+
+  try {
+    const formData = new FormData();
+    const filename = fileUri.split("/").pop() || "photo.jpg";
+    const extMatch = filename.match(/\.([a-zA-Z0-9]+)$/);
+    const ext = extMatch ? extMatch[1].toLowerCase() : "jpg";
+    const mime =
+      ext === "jpg" || ext === "jpeg" ? "image/jpeg" : `image/${ext}`;
+
+    if (fileUri.startsWith("content://")) {
+      const response = await fetch(fileUri);
+      const blob = await response.blob();
+      formData.append("file", blob, filename);
+    } else {
+      formData.append("file", { uri: fileUri, name: filename, type: mime });
+    }
+
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+    const res = await fetch(CLOUDINARY_UPLOAD_URL, {
+      method: "POST",
+      body: formData,
+      headers: {},
+    });
+    const json = await res.json();
+    console.log("Cloudinary response:", json);
+    if (json && json.secure_url) return json.secure_url;
+    console.error("Cloudinary upload failed", json);
+    return fileUri;
+  } catch (e) {
+    console.error("uploadImageToCloudinary error", e);
+    return fileUri;
+  }
+}
 
 const NewOffenseComponent = () => {
   const { theme, themeName } = useContext(ThemeContext);
@@ -74,17 +116,28 @@ const NewOffenseComponent = () => {
 
     try {
       const result = await ImagePicker.launchCameraAsync({
-        quality: 0.8,
+        quality: 1,
         base64: false,
         exif: false,
         allowsEditing: false,
       });
 
       if (result) {
+        let selectedUri = null;
+
         if (result.assets && result.assets.length > 0) {
-          setPhotoUri(result.assets[0].uri || null);
+          selectedUri = result.assets[0].uri || null;
         } else if (result.uri) {
-          setPhotoUri(result.uri);
+          selectedUri = result.uri;
+        }
+
+        if (selectedUri) {
+          const compressed = await ImageManipulator.manipulateAsync(
+            selectedUri,
+            [{ resize: { width: 800 } }],
+            { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+          );
+          setPhotoUri(compressed.uri);
         }
       }
     } catch (e) {
@@ -97,6 +150,8 @@ const NewOffenseComponent = () => {
   };
 
   const handleSave = async () => {
+    console.log("handleSave called", { description, photoUri, category });
+
     if (!description.trim()) {
       Alert.alert(
         t("validation_title", "Validation"),
@@ -107,11 +162,38 @@ const NewOffenseComponent = () => {
 
     setSaving(true);
     try {
-      const payload = {
+      let remotePhoto = null;
+      if (photoUri) {
+        const isRemote =
+          photoUri.startsWith("http://") || photoUri.startsWith("https://");
+        remotePhoto = isRemote
+          ? photoUri
+          : await uploadImageToCloudinary(photoUri);
+        console.log("after upload, remotePhoto =", remotePhoto);
+      } else {
+        remotePhoto = null;
+      }
+
+      const serverPayload = {
+        id: Date.now(),
         description: description.trim(),
-        photo_uri: photoUri ?? null,
         category: category ?? null,
+        photo_url: remotePhoto ?? null,
         created_at: new Date().toISOString(),
+        user_id: 123,
+      };
+
+      try {
+        console.log("Prepared server payload:", serverPayload);
+      } catch (logErr) {
+        console.error("Failed to log serverPayload", logErr);
+      }
+
+      const payload = {
+        description: serverPayload.description,
+        photo_uri: serverPayload.photo_url,
+        category: serverPayload.category,
+        created_at: serverPayload.created_at,
       };
       await insertOffense(payload);
       setDescription("");
@@ -348,14 +430,21 @@ const NewOffenseComponent = () => {
                 ]}>
                 {t("select_category", "Select category")}
               </Text>
-              {(
-                [
-                  { key: "public_order", label: t("cat_public_order", "Public order") },
-                  { key: "traffic", label: t("cat_traffic", "Traffic violation") },
-                  { key: "property_damage", label: t("cat_property_damage", "Property damage") },
-                  { key: "crimes", label: t("cat_crimes", "Crimes") },
-                ]
-              ).map((c) => (
+              {[
+                {
+                  key: "public_order",
+                  label: t("cat_public_order", "Public order"),
+                },
+                {
+                  key: "traffic",
+                  label: t("cat_traffic", "Traffic violation"),
+                },
+                {
+                  key: "property_damage",
+                  label: t("cat_property_damage", "Property damage"),
+                },
+                { key: "crimes", label: t("cat_crimes", "Crimes") },
+              ].map((c) => (
                 <TouchableOpacity
                   key={c.key}
                   style={[
