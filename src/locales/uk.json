@@ -33,5 +33,6 @@
   "cat_property_damage": "Завдання майнової шкоди",
   "cat_crimes": "Злочини",
   "category_label": "Категорія",
-  "no_category": "Немає категорії"
+  "no_category": "Немає категорії",
+  "location": "Місцезнаходження"
 }

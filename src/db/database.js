@@ -29,6 +29,8 @@ export async function initOffensesTable() {
             description TEXT NOT NULL,
             photo_path TEXT,
             category TEXT,
+            latitude REAL,
+            longitude REAL,
             created_at TEXT NOT NULL
           );`
         );
@@ -44,6 +46,8 @@ export async function insertOffense({
   photo_uri,
   created_at,
   category,
+  latitude,
+  longitude,
 }) {
   if (!hasSQLite) {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
@@ -54,6 +58,8 @@ export async function insertOffense({
       description,
       photo_uri: photo_uri || null,
       category: category ?? null,
+      latitude: latitude ?? null,
+      longitude: longitude ?? null,
       created_at,
     };
     arr.push(rec);
@@ -66,8 +72,15 @@ export async function insertOffense({
     db.transaction(
       (tx) => {
         tx.executeSql(
-          `INSERT INTO offenses (description, photo_path, category, created_at) VALUES (?, ?, ?, ?);`,
-          [description, photo_uri || null, category ?? null, created_at],
+          `INSERT INTO offenses (description, photo_path, category, latitude, longitude, created_at) VALUES (?, ?, ?, ?, ?, ?);`,
+          [
+            description,
+            photo_uri || null,
+            category ?? null,
+            latitude ?? null,
+            longitude ?? null,
+            created_at,
+          ],
           (_, result) => resolve(result.insertId),
           (_, error) => reject(error)
         );
@@ -87,6 +100,8 @@ export async function getAllOffenses() {
       .map((r) => ({
         ...r,
         category: r.category ?? null,
+        latitude: r.latitude ?? null,
+        longitude: r.longitude ?? null,
       }));
   }
 
@@ -95,7 +110,7 @@ export async function getAllOffenses() {
     db.transaction(
       (tx) => {
         tx.executeSql(
-          `SELECT id, description, photo_path, category, created_at FROM offenses ORDER BY datetime(created_at) DESC;`,
+          `SELECT id, description, photo_path, category, latitude, longitude, created_at FROM offenses ORDER BY datetime(created_at) DESC;`,
           [],
           (_, { rows }) => {
             const data = [];
@@ -105,6 +120,8 @@ export async function getAllOffenses() {
                 description: rows.item(i).description,
                 photo_uri: rows.item(i).photo_path || null,
                 category: rows.item(i).category ?? null,
+                latitude: rows.item(i).latitude ?? null,
+                longitude: rows.item(i).longitude ?? null,
                 created_at: rows.item(i).created_at,
               });
             }

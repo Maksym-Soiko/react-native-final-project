@@ -3,9 +3,11 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, FlatList, A
   ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Modal } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
+import * as Location from "expo-location";
 import { ThemeContext } from "../context/ThemeContext";
 import { useTranslation } from "react-i18next";
 import { initOffensesTable, insertOffense, getAllOffenses, clearOffenses } from "../db/database";
+import MapView, { Marker } from "react-native-maps";
 
 const CLOUDINARY_UPLOAD_URL =
   "https://api.cloudinary.com/v1_1/dogpvxjku/image/upload";
@@ -38,9 +40,7 @@ async function uploadImageToCloudinary(fileUri) {
       headers: {},
     });
     const json = await res.json();
-    console.log("Cloudinary response:", json);
     if (json && json.secure_url) return json.secure_url;
-    console.error("Cloudinary upload failed", json);
     return fileUri;
   } catch (e) {
     console.error("uploadImageToCloudinary error", e);
@@ -59,6 +59,7 @@ const NewOffenseComponent = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState([]);
+  const [photoLocation, setPhotoLocation] = useState(null);
 
   const logItemsToConsole = useCallback((list) => {
     console.log("=== OFFENSES (latest first) ===");
@@ -69,6 +70,8 @@ const NewOffenseComponent = () => {
         created_at: it.created_at,
         photo_uri: it.photo_uri,
         category: it.category ?? null,
+        latitude: it.latitude ?? null,
+        longitude: it.longitude ?? null,
       });
     });
     console.log("=== END OFFENSES ===");
@@ -116,9 +119,9 @@ const NewOffenseComponent = () => {
 
     try {
       const result = await ImagePicker.launchCameraAsync({
-        quality: 1,
+        quality: 0.5,
         base64: false,
-        exif: false,
+        exif: true,
         allowsEditing: false,
       });
 
@@ -132,12 +135,69 @@ const NewOffenseComponent = () => {
         }
 
         if (selectedUri) {
-          const compressed = await ImageManipulator.manipulateAsync(
-            selectedUri,
-            [{ resize: { width: 800 } }],
-            { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-          );
-          setPhotoUri(compressed.uri);
+          let compressedUri = selectedUri;
+          try {
+            const compressed = await ImageManipulator.manipulateAsync(
+              selectedUri,
+              [{ resize: { width: 800 } }],
+              { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
+            );
+            compressedUri = compressed.uri || selectedUri;
+          } catch (manipErr) {
+            console.warn(
+              "ImageManipulator failed, using original uri",
+              manipErr
+            );
+            compressedUri = selectedUri;
+          }
+          setPhotoUri(compressedUri);
+
+          try {
+            const exif =
+              result.assets && result.assets[0] && result.assets[0].exif;
+            if (exif) {
+              const lat = exif.GPSLatitude || exif.GPSLatitudeRef || null;
+              const lon = exif.GPSLongitude || exif.GPSLongitudeRef || null;
+              if (
+                typeof exif.GPSLatitude === "number" &&
+                typeof exif.GPSLongitude === "number"
+              ) {
+                const coord = {
+                  latitude: exif.GPSLatitude,
+                  longitude: exif.GPSLongitude,
+                };
+                setPhotoLocation(coord);
+              }
+            }
+          } catch (e) {}
+
+          try {
+            const last = await Location.getLastKnownPositionAsync();
+            if (last && last.coords) {
+              const coord = {
+                latitude: last.coords.latitude,
+                longitude: last.coords.longitude,
+              };
+              if (!photoLocation) setPhotoLocation(coord);
+            }
+
+            (async () => {
+              try {
+                const pos = await Location.getCurrentPositionAsync({
+                  accuracy: Location.Accuracy.Balanced,
+                });
+                if (pos && pos.coords) {
+                  const coord = {
+                    latitude: pos.coords.latitude,
+                    longitude: pos.coords.longitude,
+                  };
+                  setPhotoLocation(coord);
+                }
+              } catch (bgErr) {}
+            })();
+          } catch (locErr) {
+            console.warn("Location quick fetch failed", locErr);
+          }
         }
       }
     } catch (e) {
@@ -150,8 +210,6 @@ const NewOffenseComponent = () => {
   };
 
   const handleSave = async () => {
-    console.log("handleSave called", { description, photoUri, category });
-
     if (!description.trim()) {
       Alert.alert(
         t("validation_title", "Validation"),
@@ -169,7 +227,6 @@ const NewOffenseComponent = () => {
         remotePhoto = isRemote
           ? photoUri
           : await uploadImageToCloudinary(photoUri);
-        console.log("after upload, remotePhoto =", remotePhoto);
       } else {
         remotePhoto = null;
       }
@@ -181,24 +238,26 @@ const NewOffenseComponent = () => {
         photo_url: remotePhoto ?? null,
         created_at: new Date().toISOString(),
         user_id: 123,
+        latitude: photoLocation?.latitude ?? null,
+        longitude: photoLocation?.longitude ?? null,
       };
 
-      try {
-        console.log("Prepared server payload:", serverPayload);
-      } catch (logErr) {
-        console.error("Failed to log serverPayload", logErr);
-      }
+      console.log("Payload to send to backend:", serverPayload);
 
       const payload = {
         description: serverPayload.description,
         photo_uri: serverPayload.photo_url,
         category: serverPayload.category,
         created_at: serverPayload.created_at,
+        latitude: serverPayload.latitude,
+        longitude: serverPayload.longitude,
       };
-      await insertOffense(payload);
+      const savedId = await insertOffense(payload);
+
       setDescription("");
       setPhotoUri(null);
       setCategory(null);
+      setPhotoLocation(null);
 
       await loadData();
 
@@ -384,6 +443,32 @@ const NewOffenseComponent = () => {
               )}
             </View>
           </View>
+
+          {photoLocation && photoUri && (
+            <View style={{ marginTop: 12 }}>
+              <Text
+                style={[styles.label, { color: theme.text, marginBottom: 8 }]}
+              >
+                {t("location", "Location")}
+              </Text>
+              <MapView
+                style={styles.mapSmall}
+                initialRegion={{
+                  latitude: photoLocation.latitude,
+                  longitude: photoLocation.longitude,
+                  latitudeDelta: 0.005,
+                  longitudeDelta: 0.005,
+                }}
+                pointerEvents="none">
+                <Marker
+                  coordinate={{
+                    latitude: photoLocation.latitude,
+                    longitude: photoLocation.longitude,
+                  }}
+                />
+              </MapView>
+            </View>
+          )}
 
           <TouchableOpacity
             activeOpacity={0.9}
@@ -649,6 +734,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
+  },
+  mapSmall: {
+    width: "100%",
+    height: 140,
+    borderRadius: 12,
+    overflow: "hidden",
   },
 });
 
