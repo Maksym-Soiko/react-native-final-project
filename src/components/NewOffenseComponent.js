@@ -51,6 +51,8 @@ async function uploadImageToCloudinary(fileUri) {
 const NewOffenseComponent = () => {
   const { theme, themeName } = useContext(ThemeContext);
   const { t } = useTranslation();
+  const inputTextColor = themeName === "dark" ? "#ffffff" : "#111111";
+  const placeholderColor = themeName === "dark" ? "#cccccc" : "#666666";
 
   const [description, setDescription] = useState("");
   const [photoUri, setPhotoUri] = useState(null);
@@ -400,12 +402,12 @@ const NewOffenseComponent = () => {
               "description_placeholder",
               "Describe the offense..."
             )}
-            placeholderTextColor="#888"
+            placeholderTextColor={placeholderColor}
             multiline
             style={[
               styles.input,
               {
-                color: theme.text,
+                color: inputTextColor,
                 backgroundColor: theme.card,
                 borderColor: theme.divider,
               },
@@ -447,8 +449,7 @@ const NewOffenseComponent = () => {
           {photoLocation && photoUri && (
             <View style={{ marginTop: 12 }}>
               <Text
-                style={[styles.label, { color: theme.text, marginBottom: 8 }]}
-              >
+                style={[styles.label, { color: theme.text, marginBottom: 8 }]}>
                 {t("location", "Location")}
               </Text>
               <MapView
@@ -464,8 +465,7 @@ const NewOffenseComponent = () => {
                   coordinate={{
                     latitude: photoLocation.latitude,
                     longitude: photoLocation.longitude,
-                  }}
-                />
+                  }}/>
               </MapView>
             </View>
           )}

@@ -34,5 +34,22 @@
   "cat_crimes": "Злочини",
   "category_label": "Категорія",
   "no_category": "Немає категорії",
-  "location": "Місцезнаходження"
+  "location": "Місцезнаходження",
+  "login": "Увійти",
+  "register": "Зареєструватись",
+  "login_form": "Форма входу",
+  "registration_form": "Форма реєстрації",
+  "registration": "Реєстрація",
+  "enter": "Вхід",
+  "email": "Електронна пошта",
+  "password": "Пароль",
+  "confirm_password": "Підтвердіть пароль",
+  "password_mismatch": "Паролі не співпадають",
+  "user_exists": "Користувач вже існує",
+  "user_registered": "Користувач зареєстрований",
+  "login_failed": "Невірні дані",
+  "current_user": "Поточний користувач",
+  "first_name": "Ім'я",
+  "last_name": "Прізвище",
+  "validation_first_last_required": "Потрібно вказати ім'я та прізвище"
 }

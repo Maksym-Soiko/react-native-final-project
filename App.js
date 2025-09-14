@@ -5,31 +5,42 @@ import DrawerNavigator from "./src/navigation/DrawerNavigator";
 import { ThemeProvider, ThemeContext } from "./src/context/ThemeContext";
 import { StatusBar } from "react-native";
 import { useContext, useEffect } from "react";
+import AuthScreen from "./src/screens/AuthScreen";
 import { loadLanguage } from "./src/i18n";
+import { AuthProvider, useAuth } from "./src/context/AuthContext";
 
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
-        <AppContent />
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );
 }
 
 function AppContent() {
-  const { themeName, theme } = useContext(ThemeContext);
+  const { themeName, theme, loaded: themeLoaded } = useContext(ThemeContext);
+  const { user, loaded: authLoaded } = useAuth();
 
   useEffect(() => {
-    loadLanguage();
+    (async () => {
+      await loadLanguage();
+    })();
   }, []);
+
+  if (!themeLoaded || !authLoaded) return null;
+  if (!user) {
+    return <AuthScreen />;
+  }
 
   return (
     <>
       <StatusBar
         barStyle={themeName === "dark" ? "light-content" : "dark-content"}
-        backgroundColor={theme.card}
-      />
+        backgroundColor={theme.card}/>
       <NavigationContainer>
         <DrawerNavigator />
       </NavigationContainer>

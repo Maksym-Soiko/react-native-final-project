@@ -6,10 +6,12 @@ import { ThemeContext } from "../../context/ThemeContext";
 import { useTranslation } from "react-i18next";
 import i18n from "i18next";
 import { changeLanguage } from "../../i18n";
+import { useAuth } from "../../context/AuthContext";
 
 export default function CustomDrawerContent(props) {
   const { themeName, theme, toggleTheme } = useContext(ThemeContext);
   const { t } = useTranslation();
+  const { logout } = useAuth();
   const [langModalVisible, setLangModalVisible] = useState(false);
 
   const ITEM_MARGIN = 8;
@@ -178,7 +180,13 @@ export default function CustomDrawerContent(props) {
       </Modal>
 
       <TouchableOpacity
-        onPress={() => console.log("Logout pressed")}
+        onPress={async () => {
+          try {
+            if (typeof props.navigation?.closeDrawer === "function")
+              props.navigation.closeDrawer();
+          } catch (e) {}
+          if (logout) await logout();
+        }}
         style={[
           styles.boxCommon,
           {
