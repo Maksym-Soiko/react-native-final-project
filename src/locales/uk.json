@@ -51,5 +51,6 @@
   "current_user": "Поточний користувач",
   "first_name": "Ім'я",
   "last_name": "Прізвище",
-  "validation_first_last_required": "Потрібно вказати ім'я та прізвище"
+  "validation_first_last_required": "Потрібно вказати ім'я та прізвище",
+    "no_offenses_on_map": "Немає правопорушень з місцезнаходженням для відображення на карті"
 }

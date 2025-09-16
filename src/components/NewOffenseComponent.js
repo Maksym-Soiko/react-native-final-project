@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, FlatList, Alert,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Modal } from "react-native";
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Modal, DeviceEventEmitter } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as Location from "expo-location";
@@ -183,7 +183,7 @@ const NewOffenseComponent = () => {
               if (!photoLocation) setPhotoLocation(coord);
             }
 
-            (async () => {
+           await (async () => {
               try {
                 const pos = await Location.getCurrentPositionAsync({
                   accuracy: Location.Accuracy.Balanced,
@@ -263,6 +263,11 @@ const NewOffenseComponent = () => {
 
       await loadData();
 
+      DeviceEventEmitter.emit("offense_added", {
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+      });
+
       Alert.alert(t("saved_successfully", "Saved successfully"));
     } catch (e) {
       console.error("Failed to save offense:", e);
@@ -288,6 +293,7 @@ const NewOffenseComponent = () => {
             try {
               await clearOffenses();
               await loadData();
+              DeviceEventEmitter.emit("offenses_cleared");
             } catch (e) {
               console.error("clearOffenses error:", e);
               Alert.alert(
@@ -744,3 +750,4 @@ const styles = StyleSheet.create({
 });
 
 export default NewOffenseComponent;
+
