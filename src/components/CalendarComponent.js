@@ -1,27 +1,218 @@
-import { View, Text, StyleSheet } from "react-native";
-import { useContext } from "react";
+import { useState, useEffect, useContext } from "react";
+import { View, StyleSheet, useWindowDimensions, FlatList, DeviceEventEmitter } from "react-native";
+import moment from "moment";
+import Header from "./Header";
+import Day from "./Day";
+import Offenses from "./Offenses";
+import * as Database from "../db/database";
 import { ThemeContext } from "../context/ThemeContext";
-import { useTranslation } from "react-i18next";
 
-const CalendarComponent = () => {
+export default function CalendarComponent() {
   const { theme } = useContext(ThemeContext);
-  const { t } = useTranslation();
+  const [date, setDate] = useState(moment());
+  const [taskCounts, setTaskCounts] = useState({});
+  const [viewingDate, setViewingDate] = useState(new Date());
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+
+  const today = moment();
+  const startOfMonth = date.clone().startOf("month");
+  const endOfMonth = date.clone().endOf("month");
+  const startOfCalendar = startOfMonth.clone().startOf("isoWeek");
+  const endOfCalendar = endOfMonth.clone().endOf("isoWeek");
+
+  const calendar = [];
+  const day = startOfCalendar.clone();
+  while (day.isBefore(endOfCalendar) || day.isSame(endOfCalendar, "day")) {
+    calendar.push(day.clone());
+    day.add(1, "day");
+  }
+
+  useEffect(() => {
+    (async () => {
+      await Database.initOffensesTable();
+      await loadTaskCounts();
+    })();
+  }, []);
+
+  useEffect(() => {
+    const addedSub = DeviceEventEmitter.addListener(
+      "offense_added",
+      async () => {
+        try {
+          await loadTaskCounts();
+          setViewingDate((d) => (d ? new Date(d) : new Date()));
+        } catch (e) {
+          console.warn("Error handling offense_added in CalendarComponent:", e);
+        }
+      }
+    );
+
+    const clearedSub = DeviceEventEmitter.addListener(
+      "offenses_cleared",
+      async () => {
+        try {
+          await loadTaskCounts();
+          setViewingDate((d) => (d ? new Date(d) : new Date()));
+        } catch (e) {
+          console.warn(
+            "Error handling offenses_cleared in CalendarComponent:",
+            e
+          );
+        }
+      }
+    );
+
+    return () => {
+      try {
+        addedSub.remove();
+      } catch (e) {}
+      try {
+        clearedSub.remove();
+      } catch (e) {}
+    };
+  }, [loadTaskCounts]);
+
+  useEffect(() => {
+    loadTaskCounts();
+  }, [date]);
+
+  const loadTaskCounts = async () => {
+    try {
+      const all = await Database.getAllOffenses();
+      const counts = {};
+      all.forEach((it) => {
+        if (!it.created_at) return;
+        const d = new Date(it.created_at);
+        const key = d.toDateString();
+        counts[key] = (counts[key] || 0) + 1;
+      });
+      setTaskCounts(counts);
+    } catch (err) {
+      console.error("Error loading task counts:", err);
+      setTaskCounts({});
+    }
+  };
+
+  const handlePrev = () => setDate(date.clone().subtract(1, "month"));
+  const handleNext = () => setDate(date.clone().add(1, "month"));
+  const handleToday = () => {
+    setDate(moment());
+    setViewingDate(new Date());
+  };
+  const handleDayPress = (dayDate) => setViewingDate(dayDate);
+  const handleDaySelect = (dayDate) => setViewingDate(dayDate);
+
+  const formatDate = (dateObj) => {
+    const day = dateObj.getDate().toString().padStart(2, "0");
+    const month = (dateObj.getMonth() + 1).toString().padStart(2, "0");
+    const year = dateObj.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const DATA = [{ type: "calendar" }, { type: "offenses" }];
+
+  const renderItem = ({ item }) => {
+    if (item.type === "calendar") {
+      return (
+        <View
+          style={[
+            styles.calendarCard,
+            { backgroundColor: theme.card, borderColor: theme.divider },
+            isLandscape && styles.landscapeCalendarContainer,
+          ]}>
+          <View style={styles.calendar}>
+            {calendar.map((dayItem, index) => (
+              <Day
+                key={index}
+                date={dayItem.toDate()}
+                currentMonth={dayItem.month() === date.month()}
+                today={today.toDate()}
+                onPress={handleDayPress}
+                onSelect={handleDaySelect}
+                hasTasks={
+                  (taskCounts[dayItem.toDate().toDateString()] || 0) > 0
+                }
+                isSelected={
+                  dayItem.toDate().toDateString() === viewingDate.toDateString()
+                }/>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
+    if (item.type === "offenses") {
+      return (
+        <Offenses
+          viewingDate={viewingDate}
+          formatDate={formatDate}
+          refreshTaskCounts={loadTaskCounts}/>
+      );
+    }
+
+    return null;
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={{ color: theme.text }}>
-        {t("calendar_component", "Calendar Component")}
-      </Text>
-    </View>
+    <FlatList
+      data={DATA}
+      renderItem={renderItem}
+      keyExtractor={(item, index) => index.toString()}
+      style={{ backgroundColor: theme.background }}
+      contentContainerStyle={[
+        styles.container,
+        isLandscape && styles.landscapeContainer,
+      ]}
+      ListHeaderComponent={
+        <Header
+          currentDate={date.toDate()}
+          prevMonth={handlePrev}
+          nextMonth={handleNext}
+          goToToday={handleToday}
+          isLandscape={isLandscape}/>
+      }/>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
+    paddingTop: 8,
+    paddingHorizontal: 12,
+  },
+  landscapeContainer: {
+    paddingTop: 8,
+  },
+  columnLayout: {
+    flexDirection: "column",
     alignItems: "center",
+  },
+  rowLayout: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  landscapeCalendarContainer: {
+    marginLeft: 30,
+  },
+  calendarCard: {
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+    marginBottom: 20,
+  },
+  calendar: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "center",
+    marginBottom: 2,
+    maxWidth: 340,
   },
 });
-
-export default CalendarComponent;

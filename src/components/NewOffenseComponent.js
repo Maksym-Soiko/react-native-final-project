@@ -1,13 +1,14 @@
-import { useContext, useEffect, useState, useCallback } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, FlatList, Alert,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Modal, DeviceEventEmitter } from "react-native";
+import { useContext, useEffect, useState } from "react";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ScrollView, Modal, DeviceEventEmitter } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as Location from "expo-location";
 import { ThemeContext } from "../context/ThemeContext";
 import { useTranslation } from "react-i18next";
-import { initOffensesTable, insertOffense, getAllOffenses, clearOffenses } from "../db/database";
+import { initOffensesTable, insertOffense, clearOffenses } from "../db/database";
 import MapView, { Marker } from "react-native-maps";
+import { Ionicons } from "@expo/vector-icons";
 
 const CLOUDINARY_UPLOAD_URL =
   "https://api.cloudinary.com/v1_1/dogpvxjku/image/upload";
@@ -60,45 +61,17 @@ const NewOffenseComponent = () => {
   const [catModalVisible, setCatModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [items, setItems] = useState([]);
   const [photoLocation, setPhotoLocation] = useState(null);
-
-  const logItemsToConsole = useCallback((list) => {
-    console.log("=== OFFENSES (latest first) ===");
-    list.forEach((it) => {
-      console.log({
-        id: it.id,
-        description: it.description,
-        created_at: it.created_at,
-        photo_uri: it.photo_uri,
-        category: it.category ?? null,
-        latitude: it.latitude ?? null,
-        longitude: it.longitude ?? null,
-      });
-    });
-    console.log("=== END OFFENSES ===");
-  }, []);
-
-  const loadData = useCallback(async () => {
-    try {
-      const data = await getAllOffenses();
-      setItems(data);
-      logItemsToConsole(data);
-    } catch (e) {
-      console.error("Failed to load offenses:", e);
-    }
-  }, [logItemsToConsole]);
 
   useEffect(() => {
     (async () => {
       try {
         await initOffensesTable();
-        await loadData();
       } finally {
         setLoading(false);
       }
     })();
-  }, [loadData]);
+  }, []);
 
   const requestCameraPermission = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -183,7 +156,7 @@ const NewOffenseComponent = () => {
               if (!photoLocation) setPhotoLocation(coord);
             }
 
-           await (async () => {
+            await (async () => {
               try {
                 const pos = await Location.getCurrentPositionAsync({
                   accuracy: Location.Accuracy.Balanced,
@@ -261,8 +234,6 @@ const NewOffenseComponent = () => {
       setCategory(null);
       setPhotoLocation(null);
 
-      await loadData();
-
       DeviceEventEmitter.emit("offense_added", {
         latitude: payload.latitude,
         longitude: payload.longitude,
@@ -292,7 +263,6 @@ const NewOffenseComponent = () => {
           onPress: async () => {
             try {
               await clearOffenses();
-              await loadData();
               DeviceEventEmitter.emit("offenses_cleared");
             } catch (e) {
               console.error("clearOffenses error:", e);
@@ -385,9 +355,16 @@ const NewOffenseComponent = () => {
           <TouchableOpacity
             style={[
               styles.boxCommonSmall,
-              { backgroundColor: theme.card, marginBottom: 8 },
+              {
+                backgroundColor: theme.card,
+                marginBottom: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                borderColor: theme.divider,
+              },
             ]}
-            onPress={() => setCatModalVisible(true)}>
+            onPress={() => setCatModalVisible(true)}
+            activeOpacity={0.85}>
             <Text style={{ color: theme.text, flex: 1 }}>
               {category
                 ? `${t("category_label", "Category")}: ${t(
@@ -396,6 +373,7 @@ const NewOffenseComponent = () => {
                   )}`
                 : t("select_category", "Select category")}
             </Text>
+            <Ionicons name="chevron-down" size={20} color={theme.divider} />
           </TouchableOpacity>
 
           <Text style={[styles.label, { color: theme.text }]}>
@@ -497,10 +475,6 @@ const NewOffenseComponent = () => {
               {t("clear", "Clear")}
             </Text>
           </TouchableOpacity>
-
-          <Text style={[styles.listTitle, { color: theme.text }]}>
-            {t("offenses_list", "Offenses list")}
-          </Text>
         </View>
 
         <Modal
@@ -562,13 +536,6 @@ const NewOffenseComponent = () => {
             </View>
           </View>
         </Modal>
-
-        <FlatList
-          data={items}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={renderItem}
-          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-          scrollEnabled={false}/>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -658,64 +625,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  listTitle: {
-    marginTop: 18,
-    marginBottom: 8,
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  card: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 10,
-  },
-  cardRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  thumbnail: {
-    width: 72,
-    height: 72,
-    borderRadius: 10,
-    marginRight: 12,
-    backgroundColor: "#ddd",
-  },
-  noPhoto: {
-    width: 72,
-    height: 72,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginRight: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardInfo: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 6,
-  },
-  cardDate: {
-    fontSize: 12,
-    opacity: 0.8,
-  },
-  cardCategory: {
-    fontSize: 12,
-    opacity: 0.8,
-    marginTop: 4,
-  },
-  boxCommonSmall: {
-    minHeight: 50,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
   modalOverlay: {
     flex: 1,
     alignItems: "center",
@@ -747,7 +656,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
   },
+  boxCommonSmall: {
+    minHeight: 50,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
 });
 
 export default NewOffenseComponent;
-
