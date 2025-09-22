@@ -1,0 +1,57 @@
+# Node modules and package manager logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files (secrets)
+.env
+.env.* 
+.env.local
+.env.*.local
+
+# Build / output
+dist/
+build/
+coverage/
+.nyc_output/
+*.tsbuildinfo
+
+# Logs and runtime files
+logs/
+*.log
+pids/
+*.pid
+tmp/
+temp/
+
+# Uploaded files, user data, db files
+uploads/
+storage/
+*.sqlite
+*.sqlite3
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE/editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Docker overrides and local compose
+docker-compose.override.yml
+.env.docker
+
+# Process manager
+pm2.log
+pm2.pid
+pm2.sock
+
+# Misc
+.cache/
+.cache-loader/
+*.local
