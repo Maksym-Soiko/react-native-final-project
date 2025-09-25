@@ -1,46 +1,79 @@
-import { injectable, inject } from "inversify";
-import { TYPES } from "../types";
-import { UserRepository } from "../repositories/user.repository";
-import { RegisterUserDto, LoginUserDto, UserResponseDto } from "../dtos/user.dto";
-import { ConflictError, NotFoundError, ValidationError } from "../errors/app-err";
+import { injectable } from "inversify";
 import bcrypt from "bcryptjs";
-import { UserDocument } from "../models/user.schema";
+import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
+import { UserModel } from "../models/user.schema";
+import { config } from "../config";
+import { ConflictError, UnauthorizedError } from "../errors/app-err";
+
+dotenv.config();
 
 @injectable()
 export class AuthService {
-  constructor(
-    @inject(TYPES.UserRepository) private userRepository: UserRepository
-  ) {}
+    async register(
+        email: string,
+        password: string,
+        firstName: string,
+        lastName: string
+    ): Promise<{ token: string }> {
+        const existingUser = await UserModel.findOne({ email });
+        if (existingUser) {
+            throw new ConflictError("User with this email already exists");
+        }
 
-  async register(dto: RegisterUserDto): Promise<UserResponseDto> {
-    const existingUser = await this.userRepository.findByEmail(dto.email);
-    if (existingUser) throw new ConflictError("Email already exists");
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-    const user = await this.userRepository.create({
-      ...dto,
-      password: hashedPassword,
-    });
+        const user = new UserModel({
+            email,
+            password: hashedPassword,
+            firstName,
+            lastName,
+        });
 
-    return toUserResponseDto(user);
-  }
+        await user.save();
 
-  async login(dto: LoginUserDto): Promise<UserResponseDto> {
-    const user = await this.userRepository.findByEmail(dto.email);
-    if (!user) throw new NotFoundError("User not found");
+        if (!config.JWT_SECRET) {
+            throw new Error("JWT secret is not configured");
+        }
+        const secret: jwt.Secret = config.JWT_SECRET as jwt.Secret;
+        const options: jwt.SignOptions = {
+            expiresIn: config.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"],
+        };
+        const payload = {
+            id: String((user._id as any)),
+            email: user.email,
+        };
+        const token = jwt.sign(payload as object, secret, options);
 
-    const isMatch = await bcrypt.compare(dto.password, user.password);
-    if (!isMatch) throw new ValidationError("Invalid credentials");
+        return { token };
+    }
 
-    return toUserResponseDto(user);
-  }
+    async login(email: string, password: string): Promise<{ token: string }> {
+        const user = await UserModel.findOne({ email });
+        if (!user) {
+            throw new UnauthorizedError("Invalid credentials");
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            throw new UnauthorizedError("Invalid credentials");
+        }
+
+        if (!config.JWT_SECRET) {
+            throw new Error("JWT secret is not configured");
+        }
+        const secret2: jwt.Secret = config.JWT_SECRET as jwt.Secret;
+        const options2: jwt.SignOptions = {
+            expiresIn: config.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"],
+        };
+        const payload2 = {
+            id: String((user._id as any)),
+            email: user.email,
+        };
+        const token = jwt.sign(payload2 as object, secret2, options2);
+
+        return { token };
+    }
 }
 
-function toUserResponseDto(user: UserDocument): UserResponseDto {
-  return {
-    id: user._id.toHexString(),
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-  };
-}
+export const authService = new AuthService();

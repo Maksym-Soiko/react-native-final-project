@@ -1,10 +1,10 @@
-import { Context } from "koa";
-import { plainToInstance } from "class-transformer";
-import { UpdateUserDto } from "../dtos/user.dto";
-import { validate } from "class-validator";
-import { inject, injectable } from "inversify";
-import { TYPES } from "../types";
-import { UserService } from "../services/user.service";
+import {Context} from "koa";
+import {plainToInstance} from "class-transformer";
+import {UpdateUserDto} from "../dtos/user.dto";
+import {validate} from "class-validator";
+import {inject, injectable} from "inversify";
+import {TYPES} from "../types";
+import {UserService} from "../services/user.service";
 
 @injectable()
 export class UserController {
@@ -21,7 +21,6 @@ export class UserController {
       return;
     }
 
-    const user = await this.userService.updateById(id, dto);
-    ctx.body = user;
+    ctx.body = await this.userService.updateById(id, dto);
   }
 }

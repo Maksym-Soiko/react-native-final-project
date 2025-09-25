@@ -40,13 +40,28 @@ export class OffenseService {
 }
 
 function toOffenseResponseDto(offense: OffenseDocument): OffenseResponseDto {
+  const loc = (offense as any).location || {};
+  let lat: number | null = null;
+  let lng: number | null = null;
+
+  if (typeof loc.lat === "number" && typeof loc.lng === "number") {
+    lat = loc.lat;
+    lng = loc.lng;
+  } else if (Array.isArray(loc.coordinates) && loc.coordinates.length >= 2) {
+    lng = Number(loc.coordinates[0]);
+    lat = Number(loc.coordinates[1]);
+  } else if (Array.isArray((offense as any).coords) && (offense as any).coords.length >= 2) {
+    lng = Number((offense as any).coords[0]);
+    lat = Number((offense as any).coords[1]);
+  }
+
   return {
-    id: offense._id.toHexString(),
+    id: (offense._id as any).toHexString ? (offense._id as any).toHexString() : String((offense._id as any)),
     description: offense.description,
     category: offense.category,
     photoUrl: offense.photoUrl,
     dateTime: offense.dateTime.toISOString(),
-    userId: offense.userId.toHexString(),
-    location: { lat: offense.location.lat, lng: offense.location.lng },
+    userId: (offense.userId as any)?.toHexString ? (offense.userId as any).toHexString() : String(offense.userId),
+    location: { lat: lat as number, lng: lng as number },
   };
 }
