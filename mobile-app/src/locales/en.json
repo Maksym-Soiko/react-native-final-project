@@ -56,5 +56,9 @@
   "today": "Today",
   "month_names": [ "January", "February", "March", "April", "May", "June", "July", "August",
    "September", "October", "November", "December" ],
-  "week_days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+  "week_days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+  "login_as_a_guest": "Login as a guest",
+  "edit_profile": "Edit profile",
+  "new_password": "New password (leave empty to keep current)",
+  "new_password_short": "New password"
 }

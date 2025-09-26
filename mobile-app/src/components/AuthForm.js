@@ -1,12 +1,9 @@
 import { useState, useContext } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { ThemeContext } from "../context/ThemeContext";
-
-const USERS_KEY = "APP_USERS";
-const CURRENT_USER = "CURRENT_USER";
+import * as authApi from "../api/authApi";
 
 export default function AuthForm({ mode = "login", onSuccess, theme }) {
   const { t } = useTranslation();
@@ -23,13 +20,24 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
   const [confirm, setConfirm] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const loadUsers = async () => {
-    const raw = await AsyncStorage.getItem(USERS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  };
-
-  const saveUsers = async (arr) => {
-    await AsyncStorage.setItem(USERS_KEY, JSON.stringify(arr));
+  const enterWithoutRegistration = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      const guestUser = {
+        id: `guest_${Date.now()}`,
+        isGuest: true,
+        token: null,
+        email: null,
+      };
+      if (setUser) await setUser(guestUser);
+      if (onSuccess) onSuccess(guestUser);
+      Alert.alert(t("guest_mode_title", "Guest mode"), t("guest_mode_desc", "You are logged in as a guest"));
+    } catch (e) {
+      console.warn("guest login error", e);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const register = async () => {
@@ -46,7 +54,7 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
     if (!email.trim() || !password) {
       Alert.alert(
         t("validation_title", "Validation"),
-        t("validation_description_required", "Description is required.")
+        t("validation_description_required", "Email and password are required.")
       );
       setIsProcessing(false);
       return;
@@ -59,43 +67,39 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
       setIsProcessing(false);
       return;
     }
-    const users = await loadUsers();
-    if (users.find((u) => u.email === email.trim())) {
-      Alert.alert(
-        t("error_title", "Error"),
-        t("user_exists", "User already exists")
-      );
-      setIsProcessing(false);
-      return;
-    }
-    const newUser = {
-      id: Date.now(),
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      email: email.trim(),
-      password,
-    };
-    users.push(newUser);
+
     try {
-      await saveUsers(users);
-      await AsyncStorage.setItem(CURRENT_USER, JSON.stringify(newUser));
-      Alert.alert(
-        t("saved_successfully", "Saved successfully"),
-        t("user_registered", "Registered")
-      );
+      const resp = await authApi.register(firstName.trim(), lastName.trim(), email.trim().toLowerCase(), password);
+      const data = resp?.data ?? {};
+      const token = data?.token;
+      if (!token) {
+        const msg = data?.message || "Registration failed";
+        Alert.alert(t("error_title", "Error"), msg);
+        setIsProcessing(false);
+        return;
+      }
+
+      const newUser = {
+        id: Date.now(),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim().toLowerCase(),
+        token,
+      };
+
+      if (setUser) await setUser(newUser);
+      Alert.alert(t("saved_successfully", "Saved successfully"), t("user_registered", "Registered"));
+
       setFirstName("");
       setLastName("");
       setEmail("");
       setPassword("");
       setConfirm("");
-      if (setUser) await setUser(newUser);
       if (onSuccess) onSuccess(newUser);
     } catch (err) {
       console.error("register error", err);
-      Alert.alert(
-        t("error_title", "Error"),
-        t("error_saving", "Failed to save.")
-      );
+      const msg = err?.response?.data?.message || err?.message || t("error_saving", "Failed to save.");
+      Alert.alert(t("error_title", "Error"), msg);
     } finally {
       setIsProcessing(false);
     }
@@ -107,39 +111,38 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
     if (!email.trim() || !password) {
       Alert.alert(
         t("validation_title", "Validation"),
-        t("validation_description_required", "Description is required.")
+        t("validation_description_required", "Email and password are required.")
       );
       setIsProcessing(false);
       return;
     }
     try {
-      const users = await loadUsers();
-      const user = users.find(
-        (u) => u.email === email.trim() && u.password === password
-      );
-      if (!user) {
-        Alert.alert(
-          t("error_title", "Error"),
-          t("login_failed", "Invalid credentials")
-        );
+      const resp = await authApi.login(email.trim().toLowerCase(), password);
+      const data = resp?.data ?? {};
+      const token = data?.token;
+      if (!token) {
+        const msg = data?.message || "Login failed";
+        Alert.alert(t("error_title", "Error"), msg);
         setIsProcessing(false);
         return;
       }
-      await AsyncStorage.setItem(CURRENT_USER, JSON.stringify(user));
-      Alert.alert(
-        t("saved_successfully", "Saved successfully"),
-        t("login", "Logged in")
-      );
+
+      const user = {
+        id: Date.now(),
+        email: email.trim().toLowerCase(),
+        token,
+      };
+
+      if (setUser) await setUser(user);
+      Alert.alert(t("saved_successfully", "Saved successfully"), t("login", "Logged in"));
+
       setEmail("");
       setPassword("");
-      if (setUser) await setUser(user);
       if (onSuccess) onSuccess(user);
     } catch (err) {
       console.error("login error", err);
-      Alert.alert(
-        t("error_title", "Error"),
-        t("login_failed", "Invalid credentials")
-      );
+      const msg = err?.response?.data?.message || err?.message || t("login_failed", "Invalid credentials");
+      Alert.alert(t("error_title", "Error"), msg);
     } finally {
       setIsProcessing(false);
     }
@@ -234,6 +237,7 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
       <TouchableOpacity
         style={[
           styles.button,
+          mode === "register" && styles.primaryButtonRegisterSpacing,
           { backgroundColor: isProcessing ? "#b0b0b0" : "tomato" },
         ]}
         onPress={mode === "login" ? login : register}
@@ -242,6 +246,22 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
           {mode === "login" ? t("login", "Login") : t("register", "Register")}
         </Text>
       </TouchableOpacity>
+
+      {mode === "register" && (
+        <>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              { backgroundColor: isProcessing ? "#b0b0b0" : "#666" },
+            ]}
+            onPress={enterWithoutRegistration}
+            disabled={isProcessing}>
+            <Text style={styles.buttonText}>
+              {t("login_as_a_guest", "Login as a guest")}
+            </Text>
+          </TouchableOpacity>
+        </>
+      )}
     </View>
   );
 }
@@ -266,6 +286,9 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     alignItems: "center",
+  },
+  primaryButtonRegisterSpacing: {
+    marginBottom: 16,
   },
   buttonText: {
     color: "#fff",

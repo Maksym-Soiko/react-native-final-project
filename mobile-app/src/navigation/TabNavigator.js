@@ -6,12 +6,14 @@ import NewOffenseComponent from "../components/NewOffenseComponent";
 import { useContext } from "react";
 import { ThemeContext } from "../context/ThemeContext";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../context/AuthContext";
 
 const Tab = createBottomTabNavigator();
 
 export default function TabNavigator() {
   const { theme } = useContext(ThemeContext);
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   return (
     <Tab.Navigator
@@ -42,10 +44,12 @@ export default function TabNavigator() {
         name="Map"
         component={MapComponent}
         options={{ tabBarLabel: t("map", "Map") }}/>
-      <Tab.Screen
-        name="New offense"
-        component={NewOffenseComponent}
-        options={{ tabBarLabel: t("new_offense", "New Offense") }}/>
+      {!user?.isGuest && (
+        <Tab.Screen
+          name="New offense"
+          component={NewOffenseComponent}
+          options={{ tabBarLabel: t("new_offense", "New Offense") }}/>
+      )}
     </Tab.Navigator>
   );
 }

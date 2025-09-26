@@ -7,12 +7,14 @@ import { TouchableOpacity } from "react-native";
 import { useContext } from "react";
 import { ThemeContext } from "../context/ThemeContext";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../context/AuthContext";
 
 const Drawer = createDrawerNavigator();
 
 export default function DrawerNavigator() {
   const { theme } = useContext(ThemeContext);
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   return (
     <Drawer.Navigator
@@ -40,22 +42,24 @@ export default function DrawerNavigator() {
             </TouchableOpacity>
           ),
         })}/>
-      <Drawer.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={({ navigation }) => ({
-          title: t("profile", "Profile"),
-          headerStyle: { backgroundColor: theme.card },
-          headerTintColor: theme.text,
-          headerLeftContainerStyle: { marginRight: 16 },
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => navigation.toggleDrawer()}
-              style={{ marginLeft: 12 }}>
-              <Ionicons name="menu" size={28} color={theme.drawerIcon} />
-            </TouchableOpacity>
-          ),
-        })}/>
+      {!user?.isGuest && (
+        <Drawer.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={({ navigation }) => ({
+            title: t("profile", "Profile"),
+            headerStyle: { backgroundColor: theme.card },
+            headerTintColor: theme.text,
+            headerLeftContainerStyle: { marginRight: 16 },
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => navigation.toggleDrawer()}
+                style={{ marginLeft: 12 }}>
+                <Ionicons name="menu" size={28} color={theme.drawerIcon} />
+              </TouchableOpacity>
+            ),
+          })}/>
+      )}
     </Drawer.Navigator>
   );
 }

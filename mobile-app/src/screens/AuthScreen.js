@@ -1,30 +1,20 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useContext } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert, StatusBar, Platform } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import AuthForm from "../components/AuthForm";
 import { ThemeContext } from "../context/ThemeContext";
 import { useTranslation } from "react-i18next";
-
-const CURRENT_USER = "CURRENT_USER";
+import { useAuth } from "../context/AuthContext";
 
 export default function AuthScreen() {
   const { theme, themeName } = useContext(ThemeContext);
   const inputTextColor = themeName === "dark" ? "#ffffff" : "#111111";
   const { t } = useTranslation();
   const [mode, setMode] = useState("login");
-  const [user, setUser] = useState(null);
+  const { user, logout } = useAuth();
   const [toggleDisabled, setToggleDisabled] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const raw = await AsyncStorage.getItem(CURRENT_USER);
-      if (raw) setUser(JSON.parse(raw));
-    })();
-  }, []);
-
   const handleLogout = async () => {
-    await AsyncStorage.removeItem(CURRENT_USER);
-    setUser(null);
+    if (logout) await logout();
     Alert.alert(
       t("saved_successfully", "Saved successfully"),
       t("logout", "Logged out")
@@ -83,9 +73,7 @@ export default function AuthScreen() {
 
         <AuthForm
           mode={mode}
-          onSuccess={(u) => {
-            setUser(u);
-          }}
+          onSuccess={(u) => {}}
           theme={theme}/>
 
         {user ? (
@@ -93,9 +81,7 @@ export default function AuthScreen() {
             <Text style={{ color: theme.text }}>
               {t("current_user", "Current user")}:{" "}
               {user.firstName || user.lastName
-                ? `${user.firstName || ""} ${user.lastName || ""} (${
-                    user.email
-                  })`
+                ? `${user.firstName || ""} ${user.lastName || ""} (${user.email})`
                 : user.email}
             </Text>
             <TouchableOpacity

@@ -11,7 +11,7 @@ import { useAuth } from "../../context/AuthContext";
 export default function CustomDrawerContent(props) {
   const { themeName, theme, toggleTheme } = useContext(ThemeContext);
   const { t } = useTranslation();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [langModalVisible, setLangModalVisible] = useState(false);
 
   const ITEM_MARGIN = 8;
@@ -41,31 +41,33 @@ export default function CustomDrawerContent(props) {
         styles.scroll,
         { backgroundColor: theme.background },
       ]}>
-      <TouchableOpacity
-        onPress={() => props.navigation.navigate("Profile")}
-        style={[
-          styles.boxCommon,
-          {
-            marginVertical: ITEM_MARGIN,
-            height: ITEM_HEIGHT,
-            backgroundColor: theme.card,
-            paddingHorizontal: 12,
-            justifyContent: "center",
-          },
-        ]}>
-        <Ionicons name="person-outline" size={ICON_SIZE} color={ICON_COLOR} />
-        <Text
+      { !user?.isGuest && (
+        <TouchableOpacity
+          onPress={() => props.navigation.navigate("Profile")}
           style={[
-            styles.drawerLabel,
+            styles.boxCommon,
             {
-              color: LABEL_COLOR,
-              fontSize: LABEL_FONT_SIZE,
-              fontWeight: LABEL_FONT_WEIGHT,
+              marginVertical: ITEM_MARGIN,
+              height: ITEM_HEIGHT,
+              backgroundColor: theme.card,
+              paddingHorizontal: 12,
+              justifyContent: "center",
             },
           ]}>
-          {t("profile", "Profile")}
-        </Text>
-      </TouchableOpacity>
+          <Ionicons name="person-outline" size={ICON_SIZE} color={ICON_COLOR} />
+          <Text
+            style={[
+              styles.drawerLabel,
+              {
+                color: LABEL_COLOR,
+                fontSize: LABEL_FONT_SIZE,
+                fontWeight: LABEL_FONT_WEIGHT,
+              },
+            ]}>
+            {t("profile", "Profile")}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <View
         style={[
