@@ -8,5 +8,6 @@ const router = new Router({ prefix: "/users" });
 const controllerUser = container.get<UserController>(TYPES.UserController);
 
 router.patch("/:id", (ctx) => controllerUser.update(ctx));
+router.get("/:id", (ctx) => controllerUser.get(ctx));
 
 export default router;

@@ -23,4 +23,17 @@ export class UserController {
 
     ctx.body = await this.userService.updateById(id, dto);
   }
+
+  async get(ctx: Context) {
+    const id = ctx.params.id;
+    if (!id) {
+      ctx.status = 400;
+      ctx.body = { message: "User id is required" };
+      return;
+    }
+
+    const result = await this.userService.getById(id);
+    ctx.status = 200;
+    ctx.body = result;
+  }
 }
