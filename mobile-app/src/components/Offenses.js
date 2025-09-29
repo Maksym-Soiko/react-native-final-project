@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
-import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet } from "react-native";
-import { getAllOffenses } from "../db/database";
+import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import * as offenseApi from "../api/offenseApi";
 import { useContext } from "react";
 import { ThemeContext } from "../context/ThemeContext";
 import { useTranslation } from "react-i18next";
 
-export default function Offenses({ viewingDate, formatDate, refreshTaskCounts }) {
+export default function Offenses({
+  viewingDate,
+  formatDate,
+  refreshTaskCounts,
+}) {
   const { theme } = useContext(ThemeContext);
   const { t } = useTranslation();
   const [items, setItems] = useState([]);
@@ -14,25 +18,53 @@ export default function Offenses({ viewingDate, formatDate, refreshTaskCounts })
     if (!iso) return "";
     const d = new Date(iso);
     if (isNaN(d)) return iso;
-    const dd = String(d.getDate()).padStart(2, "0");
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const yyyy = d.getFullYear();
-    const hh = String(d.getHours()).padStart(2, "0");
-    const min = String(d.getMinutes()).padStart(2, "0");
-    return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+    try {
+      return d.toLocaleString(undefined, {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+    } catch (e) {
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const yyyy = d.getFullYear();
+      const hh = String(d.getHours()).padStart(2, "0");
+      const min = String(d.getMinutes()).padStart(2, "0");
+      return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+    }
   };
 
   const loadForDay = async () => {
     try {
-      const all = await getAllOffenses();
-      const target = new Date(viewingDate).toDateString();
-      const filtered = all.filter((it) => {
-        if (!it.created_at) return false;
-        return new Date(it.created_at).toDateString() === target;
-      });
-      setItems(filtered);
-    } catch (e) {
-      console.error("Offenses load error:", e);
+      const dt = new Date(viewingDate);
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, "0");
+      const d = String(dt.getDate()).padStart(2, "0");
+      const dateOnly = `${y}-${m}-${d}`;
+      const data = await offenseApi.getByDate(dateOnly);
+      const mapped = Array.isArray(data)
+        ? data.map((it) => ({
+            id: it.id ?? it._id,
+            description: it.description,
+            category: it.category,
+            photo_uri: it.photoUrl ?? it.photo_url ?? null,
+            created_at: it.dateTime ?? it.created_at,
+            latitude: (it.location && it.location.lat) ?? it.latitude ?? null,
+            longitude: (it.location && it.location.lng) ?? it.longitude ?? null,
+          }))
+        : [];
+      setItems(mapped);
+    } catch (err) {
+      console.warn("Failed to load offenses from backend:", err);
+      if (err?.response?.status === 401) {
+        Alert.alert(
+          t("session_expired_title", "Session expired"),
+          t("session_expired_desc", "Please login again")
+        );
+      }
       setItems([]);
     }
   };

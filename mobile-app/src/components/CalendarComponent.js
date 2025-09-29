@@ -4,7 +4,7 @@ import moment from "moment";
 import Header from "./Header";
 import Day from "./Day";
 import Offenses from "./Offenses";
-import * as Database from "../db/database";
+import * as offenseApi from "../api/offenseApi";
 import { ThemeContext } from "../context/ThemeContext";
 
 export default function CalendarComponent() {
@@ -30,7 +30,6 @@ export default function CalendarComponent() {
 
   useEffect(() => {
     (async () => {
-      await Database.initOffensesTable();
       await loadTaskCounts();
     })();
   }, []);
@@ -79,17 +78,17 @@ export default function CalendarComponent() {
 
   const loadTaskCounts = async () => {
     try {
-      const all = await Database.getAllOffenses();
+      const dates = await offenseApi.getDates();
       const counts = {};
-      all.forEach((it) => {
-        if (!it.created_at) return;
-        const d = new Date(it.created_at);
-        const key = d.toDateString();
-        counts[key] = (counts[key] || 0) + 1;
-      });
+      if (Array.isArray(dates)) {
+        dates.forEach((d) => {
+          const key = new Date(d).toDateString();
+          counts[key] = (counts[key] || 0) + 1;
+        });
+      }
       setTaskCounts(counts);
     } catch (err) {
-      console.error("Error loading task counts:", err);
+      console.warn("Failed to load task counts from backend:", err);
       setTaskCounts({});
     }
   };
@@ -100,8 +99,16 @@ export default function CalendarComponent() {
     setDate(moment());
     setViewingDate(new Date());
   };
-  const handleDayPress = (dayDate) => setViewingDate(dayDate);
-  const handleDaySelect = (dayDate) => setViewingDate(dayDate);
+
+  const normalizeToLocalDate = (d) => {
+    const dt = new Date(d);
+    return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+  };
+
+  const handleDayPress = (dayDate) =>
+    setViewingDate(normalizeToLocalDate(dayDate));
+  const handleDaySelect = (dayDate) =>
+    setViewingDate(normalizeToLocalDate(dayDate));
 
   const formatDate = (dateObj) => {
     const day = dateObj.getDate().toString().padStart(2, "0");

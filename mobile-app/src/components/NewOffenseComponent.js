@@ -5,8 +5,10 @@ import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as Location from "expo-location";
 import { ThemeContext } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 import { useTranslation } from "react-i18next";
 import { initOffensesTable, insertOffense, clearOffenses } from "../db/database";
+import * as offenseApi from "../api/offenseApi";
 import MapView, { Marker } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -51,6 +53,7 @@ async function uploadImageToCloudinary(fileUri) {
 
 const NewOffenseComponent = () => {
   const { theme, themeName } = useContext(ThemeContext);
+  const { user, setUser } = useAuth();
   const { t } = useTranslation();
   const inputTextColor = themeName === "dark" ? "#ffffff" : "#111111";
   const placeholderColor = themeName === "dark" ? "#cccccc" : "#666666";
@@ -207,37 +210,49 @@ const NewOffenseComponent = () => {
       }
 
       const serverPayload = {
-        id: Date.now(),
         description: description.trim(),
-        category: category ?? null,
-        photo_url: remotePhoto ?? null,
-        created_at: new Date().toISOString(),
-        user_id: 123,
-        latitude: photoLocation?.latitude ?? null,
-        longitude: photoLocation?.longitude ?? null,
+        category: category ?? "",
+        photoUrl: remotePhoto ?? null,
+        dateTime: new Date().toISOString(),
+        location: photoLocation
+          ? { lat: photoLocation.latitude, lng: photoLocation.longitude }
+          : { lat: null, lng: null },
       };
 
-      console.log("Payload to send to backend:", serverPayload);
-
-      const payload = {
-        description: serverPayload.description,
-        photo_uri: serverPayload.photo_url,
-        category: serverPayload.category,
-        created_at: serverPayload.created_at,
-        latitude: serverPayload.latitude,
-        longitude: serverPayload.longitude,
-      };
-      const savedId = await insertOffense(payload);
+      try {
+        const token = user?.token ?? null;
+        await offenseApi.createOffense(serverPayload, token);
+        DeviceEventEmitter.emit("offense_added", {
+          latitude: serverPayload.location.lat,
+          longitude: serverPayload.location.lng,
+        });
+      } catch (apiErr) {
+        if (apiErr?.response?.status === 401) {
+          Alert.alert(
+            t("session_expired_title", "Session expired"),
+            t("session_expired_desc", "Please login again")
+          );
+        }
+        console.warn("Backend save failed, falling back to local DB:", apiErr);
+        const payload = {
+          description: serverPayload.description,
+          photo_uri: serverPayload.photoUrl,
+          category: serverPayload.category,
+          created_at: serverPayload.dateTime,
+          latitude: serverPayload.location.lat,
+          longitude: serverPayload.location.lng,
+        };
+        await insertOffense(payload);
+        DeviceEventEmitter.emit("offense_added", {
+          latitude: payload.latitude,
+          longitude: payload.longitude,
+        });
+      }
 
       setDescription("");
       setPhotoUri(null);
       setCategory(null);
       setPhotoLocation(null);
-
-      DeviceEventEmitter.emit("offense_added", {
-        latitude: payload.latitude,
-        longitude: payload.longitude,
-      });
 
       Alert.alert(t("saved_successfully", "Saved successfully"));
     } catch (e) {

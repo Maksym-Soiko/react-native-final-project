@@ -1,10 +1,11 @@
-import { View, Text, StyleSheet, Image, Modal, TouchableOpacity, ScrollView,
-    DeviceEventEmitter } from "react-native";
+import {
+  View, Text, StyleSheet, Image, Modal, TouchableOpacity, ScrollView,
+  DeviceEventEmitter, Alert } from "react-native";
 import { useContext, useEffect, useState, useCallback, useRef } from "react";
 import { ThemeContext } from "../context/ThemeContext";
 import { useTranslation } from "react-i18next";
 import MapView, { Marker } from "react-native-maps";
-import { getAllOffenses } from "../db/database";
+import * as offenseApi from "../api/offenseApi";
 
 const MapComponent = () => {
   const { theme } = useContext(ThemeContext);
@@ -16,10 +17,39 @@ const MapComponent = () => {
 
   const loadData = useCallback(async () => {
     try {
-      const data = await getAllOffenses();
-      setOffenses(data.filter((o) => o.latitude && o.longitude));
-    } catch (e) {
-      console.error("Failed to load offenses:", e);
+      const dates = await offenseApi.getDates();
+      const recent = Array.isArray(dates) ? dates.slice(0, 7) : [];
+      let aggregated = [];
+      for (const d of recent) {
+        try {
+          const items = await offenseApi.getByDate(d);
+          if (Array.isArray(items) && items.length) {
+            aggregated = aggregated.concat(
+              items.map((it) => ({
+                id: it.id ?? it._id,
+                description: it.description,
+                category: it.category,
+                photo_uri: it.photoUrl ?? null,
+                created_at: it.dateTime ?? it.created_at,
+                latitude: it.location?.lat ?? it.latitude ?? null,
+                longitude: it.location?.lng ?? it.longitude ?? null,
+              }))
+            );
+          }
+        } catch (e) {}
+      }
+      setOffenses(
+        aggregated.filter((o) => o.latitude != null && o.longitude != null)
+      );
+    } catch (err) {
+      console.warn("Failed to load offenses from backend:", err);
+      if (err?.response?.status === 401) {
+        Alert.alert(
+          t("session_expired_title", "Session expired"),
+          t("session_expired_desc", "Please login again")
+        );
+      }
+      setOffenses([]);
     }
   }, []);
 
@@ -76,7 +106,7 @@ const MapComponent = () => {
     const yyyy = d.getFullYear();
     const hh = String(d.getHours()).padStart(2, "0");
     const min = String(d.getMinutes()).padStart(2, "0");
-    return `${dd}-${mm}-${yyyy} ${hh}:${min}`;
+    return `${dd}.${mm}.${yyyy}, ${hh}:${min}`;
   }
 
   return (
@@ -105,7 +135,10 @@ const MapComponent = () => {
       ) : (
         <View style={styles.center}>
           <Text style={{ color: theme.text, textAlign: "center" }}>
-            {t("no_offenses_on_map", "No offenses with location to display on the map")}
+            {t(
+              "no_offenses_on_map",
+              "No offenses with location to display on the map"
+            )}
           </Text>
         </View>
       )}
