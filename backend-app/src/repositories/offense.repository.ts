@@ -26,7 +26,7 @@ export class OffenseRepository {
       typeof dto.location.lat === "number" &&
       typeof dto.location.lng === "number"
     ) {
-      coords = [dto.location.lng, dto.location.lat];
+      coords = [dto.location.lat, dto.location.lng];
     } else {
       throw new ValidationError("Invalid location (lat/lng required)");
     }
@@ -99,7 +99,7 @@ export class OffenseRepository {
     return OffenseModel.find({
       location: {
         $nearSphere: {
-          $geometry: { type: "Point", coordinates: [lng, lat] },
+          $geometry: { type: "Point", coordinates: [lat, lng] },
           $maxDistance: meters,
         },
       },

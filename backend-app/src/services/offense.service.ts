@@ -48,11 +48,11 @@ function toOffenseResponseDto(offense: OffenseDocument): OffenseResponseDto {
     lat = loc.lat;
     lng = loc.lng;
   } else if (Array.isArray(loc.coordinates) && loc.coordinates.length >= 2) {
-    lng = Number(loc.coordinates[0]);
-    lat = Number(loc.coordinates[1]);
+    lat = Number(loc.coordinates[0]);
+    lng = Number(loc.coordinates[1]);
   } else if (Array.isArray((offense as any).coords) && (offense as any).coords.length >= 2) {
-    lng = Number((offense as any).coords[0]);
-    lat = Number((offense as any).coords[1]);
+    lat = Number((offense as any).coords[0]);
+    lng = Number((offense as any).coords[1]);
   }
 
   return {
