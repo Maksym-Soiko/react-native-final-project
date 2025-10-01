@@ -1,5 +1,6 @@
 import { useState, useContext } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { Portal, Dialog, Button, Paragraph } from "react-native-paper";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { ThemeContext } from "../context/ThemeContext";
@@ -8,7 +9,8 @@ import * as authApi from "../api/authApi";
 export default function AuthForm({ mode = "login", onSuccess, theme }) {
   const { t } = useTranslation();
   const { setUser } = useAuth();
-  const { themeName } = useContext(ThemeContext);
+  const { themeName, theme: ctxTheme } = useContext(ThemeContext);
+  const appTheme = theme || ctxTheme;
 
   const inputTextColor = themeName === "dark" ? "#ffffff" : "#111111";
   const placeholderColor = themeName === "dark" ? "#cccccc" : "#666666";
@@ -19,6 +21,9 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState("");
+  const [guestModalVisible, setGuestModalVisible] = useState(false);
+  const [guestPending, setGuestPending] = useState(null);
 
   const enterWithoutRegistration = async () => {
     if (isProcessing) return;
@@ -30,9 +35,8 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
         token: null,
         email: null,
       };
-      if (setUser) await setUser(guestUser);
-      if (onSuccess) onSuccess(guestUser);
-      Alert.alert(t("guest_mode_title", "Guest mode"), t("guest_mode_desc", "You are logged in as a guest"));
+      setGuestPending(guestUser);
+      setGuestModalVisible(true);
     } catch (e) {
       console.warn("guest login error", e);
     } finally {
@@ -44,37 +48,37 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
     if (isProcessing) return;
     setIsProcessing(true);
     if (!firstName.trim() || !lastName.trim()) {
-      Alert.alert(
-        t("validation_title", "Validation"),
-        t("validation_first_last_required", "First and last name required")
+      setError(
+        t("validation_first_last_required", "First and last name are required")
       );
       setIsProcessing(false);
       return;
     }
     if (!email.trim() || !password) {
-      Alert.alert(
-        t("validation_title", "Validation"),
-        t("validation_description_required", "Email and password are required.")
+      setError(
+        t("validation_credentials_required", "Email and password are required.")
       );
       setIsProcessing(false);
       return;
     }
     if (password !== confirm) {
-      Alert.alert(
-        t("validation_title", "Validation"),
-        t("password_mismatch", "Passwords do not match")
-      );
+      setError(t("password_mismatch", "Passwords do not match"));
       setIsProcessing(false);
       return;
     }
 
     try {
-      const resp = await authApi.register(firstName.trim(), lastName.trim(), email.trim().toLowerCase(), password);
+      const resp = await authApi.register(
+        firstName.trim(),
+        lastName.trim(),
+        email.trim().toLowerCase(),
+        password
+      );
       const data = resp?.data ?? {};
       const token = data?.token;
       if (!token) {
-        const msg = data?.message || "Registration failed";
-        Alert.alert(t("error_title", "Error"), msg);
+        const msg = data?.message || t("error_saving", "Registration failed");
+        setError(msg);
         setIsProcessing(false);
         return;
       }
@@ -88,18 +92,22 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
       };
 
       if (setUser) await setUser(newUser);
-      Alert.alert(t("saved_successfully", "Saved successfully"), t("user_registered", "Registered"));
 
       setFirstName("");
       setLastName("");
       setEmail("");
       setPassword("");
       setConfirm("");
+      setError("");
+
       if (onSuccess) onSuccess(newUser);
     } catch (err) {
       console.error("register error", err);
-      const msg = err?.response?.data?.message || err?.message || t("error_saving", "Failed to save.");
-      Alert.alert(t("error_title", "Error"), msg);
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        t("error_saving", "Failed to save.");
+      setError(msg);
     } finally {
       setIsProcessing(false);
     }
@@ -109,9 +117,8 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
     if (isProcessing) return;
     setIsProcessing(true);
     if (!email.trim() || !password) {
-      Alert.alert(
-        t("validation_title", "Validation"),
-        t("validation_description_required", "Email and password are required.")
+      setError(
+        t("validation_credentials_required", "Email and password are required")
       );
       setIsProcessing(false);
       return;
@@ -121,8 +128,9 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
       const data = resp?.data ?? {};
       const token = data?.token;
       if (!token) {
-        const msg = data?.message || "Login failed";
-        Alert.alert(t("error_title", "Error"), msg);
+        const msg =
+          data?.message || t("login_error", "Incorrect login or password");
+        setError(msg);
         setIsProcessing(false);
         return;
       }
@@ -134,121 +142,192 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
       };
 
       if (setUser) await setUser(user);
-      Alert.alert(t("saved_successfully", "Saved successfully"), t("login", "Logged in"));
+      setError("");
 
       setEmail("");
       setPassword("");
       if (onSuccess) onSuccess(user);
     } catch (err) {
       console.error("login error", err);
-      const msg = err?.response?.data?.message || err?.message || t("login_failed", "Invalid credentials");
-      Alert.alert(t("error_title", "Error"), msg);
+      if (err?.response?.status === 401) {
+        setError(t("login_error", "Incorrect login or password"));
+      } else {
+        const msg =
+          err?.response?.data?.message ||
+          err?.message ||
+          t("login_error", "Incorrect login or password");
+        setError(msg);
+      }
     } finally {
       setIsProcessing(false);
     }
   };
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: theme?.background || "#fff" },
-      ]}>
-      <Text style={[styles.label, { color: inputTextColor }]}>
-        {mode === "login"
-          ? t("login_form", "Login")
-          : t("registration_form", "Register")}
-      </Text>
+    <>
+      <Portal>
+        <Dialog
+          visible={guestModalVisible}
+          onDismiss={() => setGuestModalVisible(false)}
+          style={{
+            backgroundColor: appTheme.card,
+            borderRadius: 12,
+            marginHorizontal: 24,
+          }}>
+          <Dialog.Title style={{ color: appTheme.text, fontWeight: "700" }}>
+            {t("guest_mode_title", "Guest mode")}
+          </Dialog.Title>
+          <Dialog.Content>
+            <Paragraph style={{ color: appTheme.text }}>
+              {t("guest_mode_desc", "You are logged in as a guest")}
+            </Paragraph>
+          </Dialog.Content>
+          <Dialog.Actions style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
+            <Button
+              mode="contained"
+              onPress={async () => {
+                setGuestModalVisible(false);
+                if (guestPending) {
+                  try {
+                    if (setUser) await setUser(guestPending);
+                    if (onSuccess) onSuccess(guestPending);
+                  } catch (e) {
+                    console.warn("setUser (guest) failed", e);
+                  } finally {
+                    setGuestPending(null);
+                  }
+                }
+              }}
+              contentStyle={{
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                borderRadius: 8,
+              }}
+              style={{ backgroundColor: "tomato" }}
+              labelStyle={{ color: "#fff", fontWeight: "700" }}
+              uppercase={false}>
+              OK
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
 
-      {mode === "register" && (
-        <>
-          <TextInput
-            value={firstName}
-            onChangeText={setFirstName}
-            placeholder={t("first_name", "First name")}
-            placeholderTextColor={placeholderColor}
-            style={[
-              styles.input,
-              {
-                color: inputTextColor,
-                borderColor: theme?.divider || "#ddd",
-              },
-            ]}/>
-          <TextInput
-            value={lastName}
-            onChangeText={setLastName}
-            placeholder={t("last_name", "Last name")}
-            placeholderTextColor={placeholderColor}
-            style={[
-              styles.input,
-              {
-                color: inputTextColor,
-                borderColor: theme?.divider || "#ddd",
-              },
-            ]}/>
-        </>
-      )}
-
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        placeholder={t("email", "Email")}
-        placeholderTextColor={placeholderColor}
+      <View
         style={[
-          styles.input,
+          styles.container,
           {
-            color: inputTextColor,
-            borderColor: theme?.divider || "#ddd",
+            backgroundColor: theme?.background || appTheme.background || "#fff",
           },
-        ]}
-        keyboardType="email-address"
-        autoCapitalize="none"/>
+        ]}>
+        <Text style={[styles.label, { color: inputTextColor }]}>
+          {mode === "login"
+            ? t("login_form", "Login")
+            : t("registration_form", "Register")}
+        </Text>
 
-      <TextInput
-        value={password}
-        onChangeText={setPassword}
-        placeholder={t("password", "Password")}
-        placeholderTextColor={placeholderColor}
-        style={[
-          styles.input,
-          {
-            color: inputTextColor,
-            borderColor: theme?.divider || "#ddd",
-          },
-        ]}
-        secureTextEntry/>
+        {mode === "register" && (
+          <>
+            <TextInput
+              value={firstName}
+              onChangeText={(v) => {
+                setFirstName(v);
+                if (error) setError("");
+              }}
+              placeholder={t("first_name", "First name")}
+              placeholderTextColor={placeholderColor}
+              style={[
+                styles.input,
+                {
+                  color: inputTextColor,
+                  borderColor: appTheme.divider || "#ddd",
+                },
+              ]}
+            />
+            <TextInput
+              value={lastName}
+              onChangeText={(v) => {
+                setLastName(v);
+                if (error) setError("");
+              }}
+              placeholder={t("last_name", "Last name")}
+              placeholderTextColor={placeholderColor}
+              style={[
+                styles.input,
+                {
+                  color: inputTextColor,
+                  borderColor: appTheme.divider || "#ddd",
+                },
+              ]}
+            />
+          </>
+        )}
 
-      {mode === "register" ? (
         <TextInput
-          value={confirm}
-          onChangeText={setConfirm}
-          placeholder={t("confirm_password", "Confirm password")}
+          value={email}
+          onChangeText={(v) => {
+            setEmail(v);
+            if (error) setError("");
+          }}
+          placeholder={t("email", "Email")}
           placeholderTextColor={placeholderColor}
           style={[
             styles.input,
-            {
-              color: inputTextColor,
-              borderColor: theme?.divider || "#ddd",
-            },
+            { color: inputTextColor, borderColor: appTheme.divider || "#ddd" },
+          ]}
+          keyboardType="email-address"
+          autoCapitalize="none"/>
+
+        <TextInput
+          value={password}
+          onChangeText={(v) => {
+            setPassword(v);
+            if (error) setError("");
+          }}
+          placeholder={t("password", "Password")}
+          placeholderTextColor={placeholderColor}
+          style={[
+            styles.input,
+            { color: inputTextColor, borderColor: appTheme.divider || "#ddd" },
           ]}
           secureTextEntry/>
-      ) : null}
 
-      <TouchableOpacity
-        style={[
-          styles.button,
-          mode === "register" && styles.primaryButtonRegisterSpacing,
-          { backgroundColor: isProcessing ? "#b0b0b0" : "tomato" },
-        ]}
-        onPress={mode === "login" ? login : register}
-        disabled={isProcessing}>
-        <Text style={styles.buttonText}>
-          {mode === "login" ? t("login", "Login") : t("register", "Register")}
-        </Text>
-      </TouchableOpacity>
+        {mode === "register" && (
+          <TextInput
+            value={confirm}
+            onChangeText={(v) => {
+              setConfirm(v);
+              if (error) setError("");
+            }}
+            placeholder={t("confirm_password", "Confirm password")}
+            placeholderTextColor={placeholderColor}
+            style={[
+              styles.input,
+              {
+                color: inputTextColor,
+                borderColor: appTheme.divider || "#ddd",
+              },
+            ]}
+            secureTextEntry/>
+        )}
 
-      {mode === "register" && (
-        <>
+        {error ? (
+          <Text style={[styles.errorText, { color: "tomato" }]}>{error}</Text>
+        ) : null}
+
+        <TouchableOpacity
+          style={[
+            styles.button,
+            mode === "register" && styles.primaryButtonRegisterSpacing,
+            { backgroundColor: isProcessing ? "#b0b0b0" : "tomato" },
+          ]}
+          onPress={mode === "login" ? login : register}
+          disabled={isProcessing}>
+          <Text style={styles.buttonText}>
+            {mode === "login" ? t("login", "Login") : t("register", "Register")}
+          </Text>
+        </TouchableOpacity>
+
+        {mode === "register" && (
           <TouchableOpacity
             style={[
               styles.button,
@@ -260,9 +339,9 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
               {t("login_as_a_guest", "Login as a guest")}
             </Text>
           </TouchableOpacity>
-        </>
-      )}
-    </View>
+        )}
+      </View>
+    </>
   );
 }
 
@@ -293,5 +372,9 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontWeight: "600",
+  },
+  errorText: {
+    marginBottom: 8,
+    fontSize: 13,
   },
 });

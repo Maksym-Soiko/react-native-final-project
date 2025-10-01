@@ -1,5 +1,7 @@
 import * as SQLite from "expo-sqlite";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { DeviceEventEmitter } from "react-native";
+import * as offenseApi from "../api/offenseApi";
 
 const DB_NAME = "app_data.db";
 const STORAGE_KEY = "offenses_fallback";
@@ -169,4 +171,64 @@ export async function clearOffenses() {
       reject(err);
     }
   });
+}
+
+export async function deleteLocalOffense(id) {
+  if (!hasSQLite) {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    const newArr = arr.filter((r) => String(r.id) !== String(id));
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newArr));
+    return;
+  }
+
+  return new Promise((resolve, reject) => {
+    const db = getDb();
+    db.transaction(
+      (tx) => {
+        tx.executeSql(
+          `DELETE FROM offenses WHERE id = ?;`,
+          [id],
+          () => resolve(true),
+          (_, error) => reject(error)
+        );
+      },
+      (err) => reject(err)
+    );
+  });
+}
+
+export async function getPendingOffenses() {
+  return await getAllOffenses();
+}
+
+export async function syncPendingOffenses() {
+  try {
+    const pending = await getPendingOffenses();
+    if (!Array.isArray(pending) || pending.length === 0) return;
+    for (const p of pending) {
+      try {
+        const payload = {
+          description: p.description,
+          category: p.category ?? "",
+          photoUrl: p.photo_uri ?? p.photoUrl ?? null,
+          dateTime: p.created_at ?? new Date().toISOString(),
+          location: {
+            lat: p.latitude ?? null,
+            lng: p.longitude ?? null,
+          },
+        };
+        await offenseApi.createOffense(payload);
+        await deleteLocalOffense(p.id);
+        DeviceEventEmitter.emit("offense_added", {
+          latitude: payload.location.lat,
+          longitude: payload.location.lng,
+        });
+      } catch (itemErr) {
+        console.warn("syncPendingOffenses: failed to sync item", p.id, itemErr);
+      }
+    }
+  } catch (e) {
+    console.warn("syncPendingOffenses failed", e);
+  }
 }

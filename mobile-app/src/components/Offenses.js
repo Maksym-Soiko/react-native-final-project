@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
-import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { View, Text, FlatList, Image, StyleSheet, Alert } from "react-native";
 import * as offenseApi from "../api/offenseApi";
 import { useContext } from "react";
 import { ThemeContext } from "../context/ThemeContext";
 import { useTranslation } from "react-i18next";
+import { showToast } from "../utils/toast";
 
-export default function Offenses({
-  viewingDate,
-  formatDate,
-  refreshTaskCounts,
-}) {
+export default function Offenses({ viewingDate, formatDate, refreshTaskCounts }) {
   const { theme } = useContext(ThemeContext);
   const { t } = useTranslation();
   const [items, setItems] = useState([]);
@@ -63,6 +60,13 @@ export default function Offenses({
         Alert.alert(
           t("session_expired_title", "Session expired"),
           t("session_expired_desc", "Please login again")
+        );
+      } else {
+        showToast(
+          t(
+            "server_unavailable",
+            "Cannot reach server. Check your internet connection or try again later."
+          )
         );
       }
       setItems([]);
@@ -128,7 +132,8 @@ export default function Offenses({
         renderItem={renderItem}
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
         nestedScrollEnabled={true}
-        contentContainerStyle={{ paddingBottom: 90 }}/>
+        contentContainerStyle={{ paddingBottom: 90 }}
+      />
     </View>
   );
 }

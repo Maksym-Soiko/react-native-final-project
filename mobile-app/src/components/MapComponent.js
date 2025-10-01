@@ -1,11 +1,11 @@
-import {
-  View, Text, StyleSheet, Image, Modal, TouchableOpacity, ScrollView,
+import { View, Text, StyleSheet, Image, Modal, TouchableOpacity, ScrollView,
   DeviceEventEmitter, Alert } from "react-native";
 import { useContext, useEffect, useState, useCallback, useRef } from "react";
 import { ThemeContext } from "../context/ThemeContext";
 import { useTranslation } from "react-i18next";
 import MapView, { Marker } from "react-native-maps";
 import * as offenseApi from "../api/offenseApi";
+import { showToast } from "../utils/toast";
 
 const MapComponent = () => {
   const { theme } = useContext(ThemeContext);
@@ -48,6 +48,13 @@ const MapComponent = () => {
           t("session_expired_title", "Session expired"),
           t("session_expired_desc", "Please login again")
         );
+      } else {
+        showToast(
+          t(
+            "server_unavailable",
+            "Cannot reach server. Check your internet connection or try again later."
+          )
+        );
       }
       setOffenses([]);
     }
@@ -81,6 +88,12 @@ const MapComponent = () => {
           }
         } catch (e) {
           console.warn("Error handling offense_added:", e);
+          showToast(
+            t(
+              "server_unavailable",
+              "Cannot reach server. Check your internet connection or try again later."
+            )
+          );
         }
       }
     );
@@ -258,7 +271,7 @@ const styles = StyleSheet.create({
   },
   modalImage: {
     width: "100%",
-    height: 180,
+    height: 340,
     borderRadius: 8,
     marginBottom: 8,
     backgroundColor: "#ddd",

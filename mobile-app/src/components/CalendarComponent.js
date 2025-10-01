@@ -6,6 +6,8 @@ import Day from "./Day";
 import Offenses from "./Offenses";
 import * as offenseApi from "../api/offenseApi";
 import { ThemeContext } from "../context/ThemeContext";
+import { showToast } from "../utils/toast";
+import { syncPendingOffenses } from "../db/database";
 
 export default function CalendarComponent() {
   const { theme } = useContext(ThemeContext);
@@ -30,6 +32,9 @@ export default function CalendarComponent() {
 
   useEffect(() => {
     (async () => {
+      try {
+        await syncPendingOffenses();
+      } catch (e) {}
       await loadTaskCounts();
     })();
   }, []);
@@ -90,6 +95,12 @@ export default function CalendarComponent() {
     } catch (err) {
       console.warn("Failed to load task counts from backend:", err);
       setTaskCounts({});
+      showToast(
+        t(
+          "server_unavailable",
+          "Cannot reach server. Check your internet connection or try again later."
+        )
+      );
     }
   };
 

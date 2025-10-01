@@ -16,6 +16,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.finalproject.mobileapp",
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyCbjQayhcZOID2v7a5m_PZIhw5RJGbYZow"
@@ -30,6 +31,13 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-sqlite"]
+    "plugins": [
+      "expo-sqlite"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b1ee13b6-ab7c-4b2a-aadb-ee0e4a82f8d1"
+      }
+    }
   }
 }

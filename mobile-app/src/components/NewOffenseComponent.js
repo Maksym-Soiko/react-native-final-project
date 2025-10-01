@@ -1,16 +1,20 @@
 import { useContext, useEffect, useState } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator,
-  KeyboardAvoidingView, Platform, ScrollView, Modal, DeviceEventEmitter } from "react-native";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, Alert,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Modal,
+  DeviceEventEmitter } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as Location from "expo-location";
 import { ThemeContext } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useTranslation } from "react-i18next";
-import { initOffensesTable, insertOffense, clearOffenses } from "../db/database";
+import { initOffensesTable, insertOffense, syncPendingOffenses } from "../db/database";
 import * as offenseApi from "../api/offenseApi";
 import MapView, { Marker } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
+import { Portal, Dialog, Button, Paragraph } from "react-native-paper";
+import { showToast } from "../utils/toast";
+import { useNavigation } from "@react-navigation/native";
 
 const CLOUDINARY_UPLOAD_URL =
   "https://api.cloudinary.com/v1_1/dogpvxjku/image/upload";
@@ -55,16 +59,23 @@ const NewOffenseComponent = () => {
   const { theme, themeName } = useContext(ThemeContext);
   const { user, setUser } = useAuth();
   const { t } = useTranslation();
+  const navigation = useNavigation();
   const inputTextColor = themeName === "dark" ? "#ffffff" : "#111111";
   const placeholderColor = themeName === "dark" ? "#cccccc" : "#666666";
 
   const [description, setDescription] = useState("");
+  const [errors, setErrors] = useState({ description: "", category: "" });
+
   const [photoUri, setPhotoUri] = useState(null);
   const [category, setCategory] = useState(null);
   const [catModalVisible, setCatModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [photoLocation, setPhotoLocation] = useState(null);
+  const [successVisible, setSuccessVisible] = useState(false);
+
+  const canSave =
+    description.trim().length > 0 && Boolean(category) && Boolean(photoUri);
 
   useEffect(() => {
     (async () => {
@@ -188,13 +199,18 @@ const NewOffenseComponent = () => {
   };
 
   const handleSave = async () => {
-    if (!description.trim()) {
-      Alert.alert(
-        t("validation_title", "Validation"),
-        t("validation_description_required", "Description is required.")
+    const next = { description: "", category: "" };
+    if (!category) next.category = t("select_category", "Select category");
+    if (!description.trim())
+      next.description = t(
+        "validation_description_required",
+        "Description is required."
       );
+    if (next.category || next.description) {
+      setErrors(next);
       return;
     }
+    setErrors({ description: "", category: "" });
 
     setSaving(true);
     try {
@@ -232,6 +248,13 @@ const NewOffenseComponent = () => {
             t("session_expired_title", "Session expired"),
             t("session_expired_desc", "Please login again")
           );
+        } else if (!apiErr?.response) {
+          showToast(
+            t(
+              "server_unavailable",
+              "Cannot reach server. Saved locally and will sync later."
+            )
+          );
         }
         console.warn("Backend save failed, falling back to local DB:", apiErr);
         const payload = {
@@ -247,14 +270,21 @@ const NewOffenseComponent = () => {
           latitude: payload.latitude,
           longitude: payload.longitude,
         });
+        (async () => {
+          try {
+            await syncPendingOffenses();
+          } catch (e) {
+          }
+        })();
       }
 
       setDescription("");
       setPhotoUri(null);
       setCategory(null);
       setPhotoLocation(null);
+      setErrors({ description: "", category: "" });
 
-      Alert.alert(t("saved_successfully", "Saved successfully"));
+      setSuccessVisible(true);
     } catch (e) {
       console.error("Failed to save offense:", e);
       Alert.alert(
@@ -264,33 +294,6 @@ const NewOffenseComponent = () => {
     } finally {
       setSaving(false);
     }
-  };
-
-  const confirmClear = () => {
-    Alert.alert(
-      t("confirm_clear", "Clear all offenses?"),
-      undefined,
-      [
-        { text: t("cancel", "Cancel"), style: "cancel" },
-        {
-          text: t("clear", "Clear"),
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await clearOffenses();
-              DeviceEventEmitter.emit("offenses_cleared");
-            } catch (e) {
-              console.error("clearOffenses error:", e);
-              Alert.alert(
-                t("error_title", "Error"),
-                t("error_saving", "Failed to clear offenses.")
-              );
-            }
-          },
-        },
-      ],
-      { cancelable: true }
-    );
   };
 
   function formatDate(iso) {
@@ -362,6 +365,60 @@ const NewOffenseComponent = () => {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}
         keyboardShouldPersistTaps="handled">
+        <Portal>
+          <Dialog
+            visible={successVisible}
+            onDismiss={() => setSuccessVisible(false)}
+            style={[
+              {
+                backgroundColor: theme.card,
+                borderRadius: 12,
+                marginHorizontal: 24,
+                paddingVertical: 6,
+                elevation: themeName === "dark" ? 2 : 6,
+                shadowColor: themeName === "dark" ? "#000" : "#000",
+                shadowOpacity: themeName === "dark" ? 0.35 : 0.08,
+                shadowRadius: themeName === "dark" ? 8 : 12,
+                shadowOffset: { width: 0, height: 4 },
+              },
+            ]}>
+            <Dialog.Title style={{ color: theme.text, fontWeight: "700" }}>
+              {t("saved_successfully", "Saved successfully")}
+            </Dialog.Title>
+            <Dialog.Content style={{ paddingTop: 2 }}>
+              <Paragraph style={{ color: theme.text }}>
+                {t("saved_successfully_text", "Offense successfully saved")}
+              </Paragraph>
+            </Dialog.Content>
+            <Dialog.Actions style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
+              <Button
+                mode="contained"
+                onPress={() => {
+                  setSuccessVisible(false);
+                  try {
+                    navigation.navigate("Calendar");
+                  } catch (e) {
+                  }
+                }}
+                contentStyle={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                }}
+                style={{
+                  backgroundColor: "tomato",
+                }}
+                labelStyle={{
+                  color: "#fff",
+                  fontWeight: "700",
+                }}
+                uppercase={false}>
+                OK
+              </Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
+
         <View style={styles.scrollPad}>
           <Text style={[styles.title, { color: theme.text }]}>
             {t("new_offense", "New Offense")}
@@ -372,7 +429,7 @@ const NewOffenseComponent = () => {
               styles.boxCommonSmall,
               {
                 backgroundColor: theme.card,
-                marginBottom: 8,
+                marginBottom: 2,
                 flexDirection: "row",
                 alignItems: "center",
                 borderColor: theme.divider,
@@ -391,12 +448,22 @@ const NewOffenseComponent = () => {
             <Ionicons name="chevron-down" size={20} color={theme.divider} />
           </TouchableOpacity>
 
+          {errors.category ? (
+            <Text style={[styles.errorText, { color: "tomato" }]}>
+              {errors.category}
+            </Text>
+          ) : null}
+
           <Text style={[styles.label, { color: theme.text }]}>
             {t("description", "Description")}
           </Text>
           <TextInput
             value={description}
-            onChangeText={setDescription}
+            onChangeText={(v) => {
+              setDescription(v);
+              if (errors.description)
+                setErrors((s) => ({ ...s, description: "" }));
+            }}
             placeholder={t(
               "description_placeholder",
               "Describe the offense..."
@@ -410,7 +477,13 @@ const NewOffenseComponent = () => {
                 backgroundColor: theme.card,
                 borderColor: theme.divider,
               },
-            ]}/>
+            ]}
+          />
+          {errors.description ? (
+            <Text style={[styles.errorText, { color: "tomato", marginTop: 2 }]}>
+              {errors.description}
+            </Text>
+          ) : null}
 
           <View style={styles.row}>
             <TouchableOpacity
@@ -472,23 +545,15 @@ const NewOffenseComponent = () => {
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={handleSave}
-            disabled={saving}
+            disabled={saving || !canSave}
+            accessibilityState={{ disabled: saving || !canSave }}
             style={[
               styles.saveButton,
               {
-                backgroundColor: saving ? "#b0b0b0" : "tomato",
+                backgroundColor: saving || !canSave ? "#b0b0b0" : "tomato",
               },
             ]}>
             <Text style={styles.saveText}>{t("save", "Save")}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={confirmClear}
-            style={[styles.clearButton, { borderColor: theme.divider }]}>
-            <Text style={[styles.clearText, { color: theme.text }]}>
-              {t("clear", "Clear")}
-            </Text>
           </TouchableOpacity>
         </View>
 
@@ -534,6 +599,8 @@ const NewOffenseComponent = () => {
                   onPress={() => {
                     setCategory(c.key);
                     setCatModalVisible(false);
+                    if (errors.category)
+                      setErrors((s) => ({ ...s, category: "" }));
                   }}>
                   <Text
                     style={{ color: category === c.key ? "#fff" : theme.text }}>
@@ -576,6 +643,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     marginBottom: 6,
+    marginTop: 10,
   },
   input: {
     minHeight: 90,
@@ -617,7 +685,7 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
   saveButton: {
-    marginTop: 14,
+    marginTop: 42,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: "center",
@@ -680,6 +748,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
+  },
+  errorText: {
+    fontSize: 13,
+    marginBottom: 10,
   },
 });
 
