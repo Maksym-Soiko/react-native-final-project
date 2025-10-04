@@ -46,13 +46,10 @@ function toUserResponseDto(
 
   const dto: UserResponseDto = {
     id,
-    email: user.email,
     firstName: (user as any).firstName ?? "",
     lastName: (user as any).lastName ?? "",
+    email: includeEmail ? user.email : "",
   };
 
-  if (includeEmail) {
-    dto.email = user.email;
-  }
   return dto;
 }
