@@ -33,6 +33,7 @@ export default function CustomDrawerContent(props) {
     en: "English",
     uk: "Українська",
   };
+  const selectedBg = theme?.primary || "tomato";
 
   return (
     <DrawerContentScrollView
@@ -41,7 +42,7 @@ export default function CustomDrawerContent(props) {
         styles.scroll,
         { backgroundColor: theme.background },
       ]}>
-      { !user?.isGuest && (
+      {!user?.isGuest && (
         <TouchableOpacity
           onPress={() => props.navigation.navigate("Profile")}
           style={[
@@ -49,7 +50,7 @@ export default function CustomDrawerContent(props) {
             {
               marginVertical: ITEM_MARGIN,
               height: ITEM_HEIGHT,
-              backgroundColor: theme.card,
+              backgroundColor: themeName === "light" ? "#f2f4f6" : theme.card,
               paddingHorizontal: 12,
               justifyContent: "center",
             },
@@ -75,7 +76,7 @@ export default function CustomDrawerContent(props) {
           {
             marginVertical: ITEM_MARGIN,
             height: ITEM_HEIGHT,
-            backgroundColor: theme.card,
+            backgroundColor: themeName === "light" ? "#f2f4f6" : theme.card,
             paddingHorizontal: 12,
             justifyContent: "center",
           },
@@ -101,7 +102,7 @@ export default function CustomDrawerContent(props) {
           {
             marginVertical: ITEM_MARGIN,
             minHeight: ITEM_HEIGHT,
-            backgroundColor: theme.card,
+            backgroundColor: themeName === "light" ? "#f2f4f6" : theme.card,
             paddingHorizontal: 12,
             alignItems: "center",
             justifyContent: "center",
@@ -159,19 +160,33 @@ export default function CustomDrawerContent(props) {
                     }}
                     style={[
                       styles.modalItem,
+                      {
+                        borderColor: themeName === "dark" ? "#e6e6e6" : "#000",
+                      },
                       selected && {
-                        backgroundColor: "tomato",
+                        backgroundColor: selectedBg,
+                        borderColor: selectedBg,
                       },
                     ]}>
                     <Text
                       style={[
                         styles.modalItemText,
-                        { color: selected ? "#fff" : theme.text },
+                        {
+                          color: selected ? "#fff" : theme.text,
+                          fontWeight: selected ? "700" : "400",
+                        },
                       ]}>
                       {LANG_LABELS[code] || code.toUpperCase()}
                     </Text>
                     {selected && (
-                      <Ionicons name="checkmark" size={18} color="#fff" />
+                      <Text
+                        style={{
+                          color: "#fff",
+                          fontWeight: "700",
+                          fontSize: 18,
+                        }}>
+                        ✓
+                      </Text>
                     )}
                   </TouchableOpacity>
                 );
@@ -194,7 +209,7 @@ export default function CustomDrawerContent(props) {
           {
             marginVertical: ITEM_MARGIN,
             height: ITEM_HEIGHT,
-            backgroundColor: theme.card,
+            backgroundColor: themeName === "light" ? "#f2f4f6" : theme.card,
             paddingHorizontal: 12,
             justifyContent: "center",
           },

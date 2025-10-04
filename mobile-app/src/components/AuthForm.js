@@ -1,5 +1,5 @@
 import { useState, useContext } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { Portal, Dialog, Button, Paragraph } from "react-native-paper";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
@@ -24,6 +24,16 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
   const [error, setError] = useState("");
   const [guestModalVisible, setGuestModalVisible] = useState(false);
   const [guestPending, setGuestPending] = useState(null);
+
+  const sanitizeEmail = (v) => {
+    if (typeof v !== "string") return "";
+    return v.replace(/[^\w@.+-]/g, "");
+  };
+
+  const isValidEmail = (v) => {
+    if (!v || typeof v !== "string") return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+  };
 
   const enterWithoutRegistration = async () => {
     if (isProcessing) return;
@@ -58,6 +68,11 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
       setError(
         t("validation_credentials_required", "Email and password are required.")
       );
+      setIsProcessing(false);
+      return;
+    }
+    if (!isValidEmail(email.trim().toLowerCase())) {
+      setError(t("invalid_email", "Please enter a valid email address"));
       setIsProcessing(false);
       return;
     }
@@ -120,6 +135,11 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
       setError(
         t("validation_credentials_required", "Email and password are required")
       );
+      setIsProcessing(false);
+      return;
+    }
+    if (!isValidEmail(email.trim().toLowerCase())) {
+      setError(t("invalid_email", "Please enter a valid email address"));
       setIsProcessing(false);
       return;
     }
@@ -203,7 +223,7 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
                 paddingVertical: 6,
                 borderRadius: 8,
               }}
-              style={{ backgroundColor: "tomato" }}
+              style={{ backgroundColor: appTheme.primary }}
               labelStyle={{ color: "#fff", fontWeight: "700" }}
               uppercase={false}>
               OK
@@ -216,7 +236,10 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
         style={[
           styles.container,
           {
-            backgroundColor: theme?.background || appTheme.background || "#fff",
+            backgroundColor:
+              theme?.surface || appTheme.surface || appTheme.card,
+            shadowColor: appTheme.shadowColor || "#000",
+            borderColor: appTheme.divider || "#ddd",
           },
         ]}>
         <Text style={[styles.label, { color: inputTextColor }]}>
@@ -239,10 +262,10 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
                 styles.input,
                 {
                   color: inputTextColor,
-                  borderColor: appTheme.divider || "#ddd",
+                  backgroundColor:
+                    themeName === "light" ? "#ececec" : appTheme.card,
                 },
-              ]}
-            />
+              ]}/>
             <TextInput
               value={lastName}
               onChangeText={(v) => {
@@ -255,41 +278,54 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
                 styles.input,
                 {
                   color: inputTextColor,
-                  borderColor: appTheme.divider || "#ddd",
+                  backgroundColor:
+                    themeName === "light" ? "#ececec" : appTheme.card,
                 },
-              ]}
-            />
+              ]}/>
           </>
         )}
 
         <TextInput
           value={email}
           onChangeText={(v) => {
-            setEmail(v);
+            const clean = sanitizeEmail(v);
+            setEmail(clean);
             if (error) setError("");
           }}
           placeholder={t("email", "Email")}
           placeholderTextColor={placeholderColor}
           style={[
             styles.input,
-            { color: inputTextColor, borderColor: appTheme.divider || "#ddd" },
+            {
+              color: inputTextColor,
+              backgroundColor:
+                themeName === "light" ? "#ececec" : appTheme.card,
+            },
           ]}
           keyboardType="email-address"
           autoCapitalize="none"/>
 
-        <TextInput
-          value={password}
-          onChangeText={(v) => {
-            setPassword(v);
-            if (error) setError("");
-          }}
-          placeholder={t("password", "Password")}
-          placeholderTextColor={placeholderColor}
-          style={[
-            styles.input,
-            { color: inputTextColor, borderColor: appTheme.divider || "#ddd" },
-          ]}
-          secureTextEntry/>
+        <View style={styles.passwordWrapper}>
+          <TextInput
+            value={password}
+            onChangeText={(v) => {
+              setPassword(v);
+              if (error) setError("");
+            }}
+            placeholder={t("password", "Password")}
+            placeholderTextColor={placeholderColor}
+            style={[
+              styles.input,
+              {
+                flex: 1,
+                color: inputTextColor,
+                backgroundColor:
+                  themeName === "light" ? "#ececec" : appTheme.card,
+                borderRightWidth: 0,
+              },
+            ]}
+            secureTextEntry={true}/>
+        </View>
 
         {mode === "register" && (
           <TextInput
@@ -304,39 +340,52 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
               styles.input,
               {
                 color: inputTextColor,
-                borderColor: appTheme.divider || "#ddd",
+                backgroundColor:
+                  themeName === "light" ? "#ececec" : appTheme.card,
               },
             ]}
             secureTextEntry/>
         )}
 
         {error ? (
-          <Text style={[styles.errorText, { color: "tomato" }]}>{error}</Text>
+          <Text style={[styles.errorText, { color: appTheme.primary }]}>
+            {error}
+          </Text>
         ) : null}
 
         <TouchableOpacity
           style={[
             styles.button,
             mode === "register" && styles.primaryButtonRegisterSpacing,
-            { backgroundColor: isProcessing ? "#b0b0b0" : "tomato" },
+            {
+              backgroundColor: isProcessing ? "#9e9e9e" : appTheme.primary,
+              opacity: isProcessing ? 0.9 : 1,
+            },
           ]}
           onPress={mode === "login" ? login : register}
           disabled={isProcessing}>
-          <Text style={styles.buttonText}>
-            {mode === "login" ? t("login", "Login") : t("register", "Register")}
-          </Text>
+          {isProcessing ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>
+              {mode === "login"
+                ? t("sign_in", "Sign In")
+                : t("register", "Register")}
+            </Text>
+          )}
         </TouchableOpacity>
 
         {mode === "register" && (
           <TouchableOpacity
             style={[
               styles.button,
-              { backgroundColor: isProcessing ? "#b0b0b0" : "#666" },
+              styles.secondaryButton,
+              { backgroundColor: isProcessing ? "#b0b0b0" : "#606060" },
             ]}
             onPress={enterWithoutRegistration}
             disabled={isProcessing}>
             <Text style={styles.buttonText}>
-              {t("login_as_a_guest", "Login as a guest")}
+              {t("sign_in_as_a_guest", "Sign in as a guest")}
             </Text>
           </TouchableOpacity>
         )}
@@ -347,31 +396,46 @@ export default function AuthForm({ mode = "login", onSuccess, theme }) {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 12,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 14,
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+    borderWidth: 1,
   },
   label: {
     fontSize: 18,
-    marginBottom: 8,
-    fontWeight: "600",
+    marginBottom: 10,
+    fontWeight: "700",
   },
   input: {
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 12,
+    padding: 12,
     marginBottom: 10,
+    borderColor: "transparent",
+  },
+  passwordWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 0,
   },
   button: {
-    padding: 12,
-    borderRadius: 8,
+    padding: 14,
+    borderRadius: 12,
     alignItems: "center",
+    marginTop: 6,
+  },
+  secondaryButton: {
+    marginTop: 8,
   },
   primaryButtonRegisterSpacing: {
-    marginBottom: 16,
+    marginBottom: 6,
   },
   buttonText: {
     color: "#fff",
-    fontWeight: "600",
+    fontWeight: "700",
   },
   errorText: {
     marginBottom: 8,

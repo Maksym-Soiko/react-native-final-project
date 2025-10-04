@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, Image, Modal, TouchableOpacity, ScrollView,
   DeviceEventEmitter, Alert } from "react-native";
 import { useContext, useEffect, useState, useCallback, useRef } from "react";
+import { useIsFocused } from "@react-navigation/native";
 import { ThemeContext } from "../context/ThemeContext";
 import { useTranslation } from "react-i18next";
 import MapView, { Marker } from "react-native-maps";
@@ -10,6 +11,7 @@ import { showToast } from "../utils/toast";
 const MapComponent = () => {
   const { theme } = useContext(ThemeContext);
   const { t } = useTranslation();
+  const isFocused = useIsFocused();
 
   const [offenses, setOffenses] = useState([]);
   const [selectedOffense, setSelectedOffense] = useState(null);
@@ -18,7 +20,7 @@ const MapComponent = () => {
   const loadData = useCallback(async () => {
     try {
       const dates = await offenseApi.getDates();
-      const recent = Array.isArray(dates) ? dates.slice(0, 7) : [];
+      const recent = Array.isArray(dates) ? dates : [];
       let aggregated = [];
       for (const d of recent) {
         try {
@@ -38,9 +40,23 @@ const MapComponent = () => {
           }
         } catch (e) {}
       }
-      setOffenses(
-        aggregated.filter((o) => o.latitude != null && o.longitude != null)
+      const valid = aggregated.filter(
+        (o) => o.latitude != null && o.longitude != null
       );
+      setOffenses((prev = []) => {
+        if (!prev || prev.length === 0) return valid;
+        const map = new Map();
+        for (const p of prev) {
+          const key = p?.id ?? `${p.latitude}|${p.longitude}|${p.created_at}`;
+          map.set(key, p);
+        }
+        for (const v of valid) {
+          const key = v?.id ?? `${v.latitude}|${v.longitude}|${v.created_at}`;
+          map.set(key, v);
+        }
+        return Array.from(map.values());
+      });
+      return valid;
     } catch (err) {
       console.warn("Failed to load offenses from backend:", err);
       if (err?.response?.status === 401) {
@@ -56,36 +72,96 @@ const MapComponent = () => {
           )
         );
       }
-      setOffenses([]);
+      return [];
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   useEffect(() => {
+    if (!isFocused) return;
+    (async () => {
+      try {
+        const valid = await loadData();
+        if (!valid || valid.length === 0) return;
+        let last = valid[0];
+        for (const it of valid) {
+          const a = Date.parse(it.created_at || "") || 0;
+          const b = Date.parse(last.created_at || "") || 0;
+          if (a > b) last = it;
+        }
+        const lat = Number(last.latitude);
+        const lng = Number(last.longitude);
+        if (
+          Number.isFinite(lat) &&
+          Number.isFinite(lng) &&
+          mapRef.current &&
+          mapRef.current.animateToRegion
+        ) {
+          mapRef.current.animateToRegion(
+            {
+              latitude: lat,
+              longitude: lng,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            },
+            500
+          );
+        }
+      } catch (e) {
+        console.warn("Focus centering failed:", e);
+      }
+    })();
+  }, [isFocused, loadData]);
+
+  useEffect(() => {
     const offenseAddedListener = DeviceEventEmitter.addListener(
       "offense_added",
       async (payload) => {
         try {
-          await loadData();
           if (
             payload &&
             payload.latitude != null &&
-            payload.longitude != null &&
-            mapRef.current
+            payload.longitude != null
           ) {
-            mapRef.current.animateToRegion(
-              {
-                latitude: payload.latitude,
-                longitude: payload.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              },
-              500
-            );
+            const newMarker = {
+              id: payload.id ?? payload._id ?? `local-${Date.now()}`,
+              description: payload.description ?? null,
+              category: payload.category ?? null,
+              photo_uri: payload.photoUrl ?? payload.photo_uri ?? null,
+              created_at:
+                payload.dateTime ??
+                payload.created_at ??
+                new Date().toISOString(),
+              latitude: Number(payload.latitude),
+              longitude: Number(payload.longitude),
+            };
+            setOffenses((prev = []) => {
+              const exists = prev.some(
+                (p) =>
+                  (newMarker.id && p.id && p.id === newMarker.id) ||
+                  (p.latitude === newMarker.latitude &&
+                    p.longitude === newMarker.longitude &&
+                    p.created_at === newMarker.created_at)
+              );
+              if (exists) return prev;
+              return [...prev, newMarker];
+            });
+            if (mapRef.current) {
+              mapRef.current.animateToRegion(
+                {
+                  latitude: newMarker.latitude,
+                  longitude: newMarker.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                },
+                500
+              );
+            }
           }
+          loadData().catch((e) => console.warn("Background load failed:", e));
         } catch (e) {
           console.warn("Error handling offense_added:", e);
           showToast(
@@ -128,7 +204,6 @@ const MapComponent = () => {
         <MapView
           ref={mapRef}
           style={styles.map}
-          key={offenses.map((o) => o.id).join(",")}
           initialRegion={{
             latitude: offenses[0]?.latitude || 49.421533,
             longitude: offenses[0]?.longitude || 26.996817,

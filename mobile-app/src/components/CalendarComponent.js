@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from "react";
-import { View, StyleSheet, useWindowDimensions, FlatList, DeviceEventEmitter } from "react-native";
+import {View, StyleSheet, useWindowDimensions, FlatList, DeviceEventEmitter, StatusBar } from "react-native";
 import moment from "moment";
 import Header from "./Header";
 import Day from "./Day";
@@ -173,23 +173,29 @@ export default function CalendarComponent() {
   };
 
   return (
-    <FlatList
-      data={DATA}
-      renderItem={renderItem}
-      keyExtractor={(item, index) => index.toString()}
-      style={{ backgroundColor: theme.background }}
-      contentContainerStyle={[
-        styles.container,
-        isLandscape && styles.landscapeContainer,
-      ]}
-      ListHeaderComponent={
-        <Header
-          currentDate={date.toDate()}
-          prevMonth={handlePrev}
-          nextMonth={handleNext}
-          goToToday={handleToday}
-          isLandscape={isLandscape}/>
-      }/>
+    <>
+      <StatusBar
+        barStyle={theme?.mode === "dark" ? "light-content" : "dark-content"}
+        backgroundColor={theme.card}/>
+      <FlatList
+        data={DATA}
+        renderItem={renderItem}
+        keyExtractor={(item, index) => index.toString()}
+        style={{ backgroundColor: theme.background }}
+        contentContainerStyle={[
+          styles.container,
+          isLandscape && styles.landscapeContainer,
+        ]}
+        ListHeaderComponent={
+          <Header
+            currentDate={date.toDate()}
+            prevMonth={handlePrev}
+            nextMonth={handleNext}
+            goToToday={handleToday}
+            isLandscape={isLandscape}
+          />
+        }/>
+    </>
   );
 }
 

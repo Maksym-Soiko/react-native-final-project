@@ -198,13 +198,9 @@ export async function deleteLocalOffense(id) {
   });
 }
 
-export async function getPendingOffenses() {
-  return await getAllOffenses();
-}
-
 export async function syncPendingOffenses() {
   try {
-    const pending = await getPendingOffenses();
+    const pending = await getAllOffenses();
     if (!Array.isArray(pending) || pending.length === 0) return;
     for (const p of pending) {
       try {

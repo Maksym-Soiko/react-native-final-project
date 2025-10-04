@@ -1,14 +1,13 @@
 import { useContext, useEffect, useState } from "react";
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, Alert,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Modal,
-  DeviceEventEmitter } from "react-native";
+import {View, Text, StyleSheet, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ScrollView, Modal, DeviceEventEmitter, StatusBar } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as Location from "expo-location";
 import { ThemeContext } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useTranslation } from "react-i18next";
-import { initOffensesTable, insertOffense, syncPendingOffenses } from "../db/database";
+import {initOffensesTable, insertOffense, syncPendingOffenses } from "../db/database";
 import * as offenseApi from "../api/offenseApi";
 import MapView, { Marker } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
@@ -62,6 +61,7 @@ const NewOffenseComponent = () => {
   const navigation = useNavigation();
   const inputTextColor = themeName === "dark" ? "#ffffff" : "#111111";
   const placeholderColor = themeName === "dark" ? "#cccccc" : "#666666";
+  const selectedBg = theme?.primary || "tomato";
 
   const [description, setDescription] = useState("");
   const [errors, setErrors] = useState({ description: "", category: "" });
@@ -273,8 +273,7 @@ const NewOffenseComponent = () => {
         (async () => {
           try {
             await syncPendingOffenses();
-          } catch (e) {
-          }
+          } catch (e) {}
         })();
       }
 
@@ -358,268 +357,295 @@ const NewOffenseComponent = () => {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}>
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 24 }}
-        keyboardShouldPersistTaps="handled">
-        <Portal>
-          <Dialog
-            visible={successVisible}
-            onDismiss={() => setSuccessVisible(false)}
-            style={[
-              {
-                backgroundColor: theme.card,
-                borderRadius: 12,
-                marginHorizontal: 24,
-                paddingVertical: 6,
-                elevation: themeName === "dark" ? 2 : 6,
-                shadowColor: themeName === "dark" ? "#000" : "#000",
-                shadowOpacity: themeName === "dark" ? 0.35 : 0.08,
-                shadowRadius: themeName === "dark" ? 8 : 12,
-                shadowOffset: { width: 0, height: 4 },
-              },
-            ]}>
-            <Dialog.Title style={{ color: theme.text, fontWeight: "700" }}>
-              {t("saved_successfully", "Saved successfully")}
-            </Dialog.Title>
-            <Dialog.Content style={{ paddingTop: 2 }}>
-              <Paragraph style={{ color: theme.text }}>
-                {t("saved_successfully_text", "Offense successfully saved")}
-              </Paragraph>
-            </Dialog.Content>
-            <Dialog.Actions style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
-              <Button
-                mode="contained"
-                onPress={() => {
-                  setSuccessVisible(false);
-                  try {
-                    navigation.navigate("Calendar");
-                  } catch (e) {
-                  }
-                }}
-                contentStyle={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 6,
-                  borderRadius: 8,
-                }}
-                style={{
-                  backgroundColor: "tomato",
-                }}
-                labelStyle={{
-                  color: "#fff",
-                  fontWeight: "700",
-                }}
-                uppercase={false}>
-                OK
-              </Button>
-            </Dialog.Actions>
-          </Dialog>
-        </Portal>
-
-        <View style={styles.scrollPad}>
-          <Text style={[styles.title, { color: theme.text }]}>
-            {t("new_offense", "New Offense")}
-          </Text>
-
-          <TouchableOpacity
-            style={[
-              styles.boxCommonSmall,
-              {
-                backgroundColor: theme.card,
-                marginBottom: 2,
-                flexDirection: "row",
-                alignItems: "center",
-                borderColor: theme.divider,
-              },
-            ]}
-            onPress={() => setCatModalVisible(true)}
-            activeOpacity={0.85}>
-            <Text style={{ color: theme.text, flex: 1 }}>
-              {category
-                ? `${t("category_label", "Category")}: ${t(
-                    `cat_${category}`,
-                    category
-                  )}`
-                : t("select_category", "Select category")}
-            </Text>
-            <Ionicons name="chevron-down" size={20} color={theme.divider} />
-          </TouchableOpacity>
-
-          {errors.category ? (
-            <Text style={[styles.errorText, { color: "tomato" }]}>
-              {errors.category}
-            </Text>
-          ) : null}
-
-          <Text style={[styles.label, { color: theme.text }]}>
-            {t("description", "Description")}
-          </Text>
-          <TextInput
-            value={description}
-            onChangeText={(v) => {
-              setDescription(v);
-              if (errors.description)
-                setErrors((s) => ({ ...s, description: "" }));
-            }}
-            placeholder={t(
-              "description_placeholder",
-              "Describe the offense..."
-            )}
-            placeholderTextColor={placeholderColor}
-            multiline
-            style={[
-              styles.input,
-              {
-                color: inputTextColor,
-                backgroundColor: theme.card,
-                borderColor: theme.divider,
-              },
-            ]}
-          />
-          {errors.description ? (
-            <Text style={[styles.errorText, { color: "tomato", marginTop: 2 }]}>
-              {errors.description}
-            </Text>
-          ) : null}
-
-          <View style={styles.row}>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={handlePickImage}
+    <>
+      <StatusBar
+        barStyle={themeName === "dark" ? "light-content" : "dark-content"}
+        backgroundColor={theme.card}
+      />
+      <KeyboardAvoidingView
+        style={[styles.container, { backgroundColor: theme.background }]}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 24 }}
+          keyboardShouldPersistTaps="handled">
+          <Portal>
+            <Dialog
+              visible={successVisible}
+              onDismiss={() => setSuccessVisible(false)}
               style={[
-                styles.button,
-                { borderColor: theme.divider, backgroundColor: theme.card },
+                {
+                  backgroundColor: theme.card,
+                  borderRadius: 12,
+                  marginHorizontal: 24,
+                  paddingVertical: 6,
+                  elevation: themeName === "dark" ? 2 : 6,
+                  shadowColor: themeName === "dark" ? "#000" : "#000",
+                  shadowOpacity: themeName === "dark" ? 0.35 : 0.08,
+                  shadowRadius: themeName === "dark" ? 8 : 12,
+                  shadowOffset: { width: 0, height: 4 },
+                },
               ]}>
-              <Text style={[styles.buttonText, { color: theme.text }]}>
-                {t("take_photo", "Take Photo")}
+              <Dialog.Title style={{ color: theme.text, fontWeight: "700" }}>
+                {t("saved_successfully", "Saved successfully")}
+              </Dialog.Title>
+              <Dialog.Content style={{ paddingTop: 2 }}>
+                <Paragraph style={{ color: theme.text }}>
+                  {t("saved_successfully_text", "Offense successfully saved")}
+                </Paragraph>
+              </Dialog.Content>
+              <Dialog.Actions
+                style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
+                <Button
+                  mode="contained"
+                  onPress={() => {
+                    setSuccessVisible(false);
+                    try {
+                      navigation.navigate("Calendar");
+                    } catch (e) {}
+                  }}
+                  contentStyle={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 6,
+                    borderRadius: 8,
+                  }}
+                  style={{
+                    backgroundColor: "tomato",
+                  }}
+                  labelStyle={{
+                    color: "#fff",
+                    fontWeight: "700",
+                  }}
+                  uppercase={false}>
+                  OK
+                </Button>
+              </Dialog.Actions>
+            </Dialog>
+          </Portal>
+
+          <View style={styles.scrollPad}>
+            <Text style={[styles.title, { color: theme.text }]}>
+              {t("new_offense", "New Offense")}
+            </Text>
+
+            <TouchableOpacity
+              style={[
+                styles.boxCommonSmall,
+                {
+                  backgroundColor: theme.card,
+                  marginBottom: 2,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  borderColor: theme.divider,
+                },
+              ]}
+              onPress={() => setCatModalVisible(true)}
+              activeOpacity={0.85}>
+              <Text style={{ color: theme.text, flex: 1 }}>
+                {category
+                  ? `${t("category_label", "Category")}: ${t(
+                      `cat_${category}`,
+                      category
+                    )}`
+                  : t("select_category", "Select category")}
               </Text>
+              <Ionicons
+                name="chevron-down"
+                size={20}
+                color={themeName === "dark" ? "#fff" : "#000"}/>
             </TouchableOpacity>
 
-            <View
-              style={[
-                styles.previewBox,
-                {
-                  borderColor:
-                    themeName === "dark"
-                      ? "rgba(255,255,255,0.9)"
-                      : theme.divider,
-                },
-              ]}>
-              {photoUri ? (
-                <Image source={{ uri: photoUri }} style={styles.preview} />
-              ) : (
-                <Text style={{ color: theme.text, fontSize: 12 }}>
-                  {t("no_photo", "No photo")}
-                </Text>
+            {errors.category ? (
+              <Text style={[styles.errorText, { color: "tomato" }]}>
+                {errors.category}
+              </Text>
+            ) : null}
+
+            <Text style={[styles.label, { color: theme.text }]}>
+              {t("description", "Description")}
+            </Text>
+            <TextInput
+              value={description}
+              onChangeText={(v) => {
+                setDescription(v);
+                if (errors.description)
+                  setErrors((s) => ({ ...s, description: "" }));
+              }}
+              placeholder={t(
+                "description_placeholder",
+                "Describe the offense..."
               )}
-            </View>
-          </View>
-
-          {photoLocation && photoUri && (
-            <View style={{ marginTop: 12 }}>
-              <Text
-                style={[styles.label, { color: theme.text, marginBottom: 8 }]}>
-                {t("location", "Location")}
-              </Text>
-              <MapView
-                style={styles.mapSmall}
-                initialRegion={{
-                  latitude: photoLocation.latitude,
-                  longitude: photoLocation.longitude,
-                  latitudeDelta: 0.005,
-                  longitudeDelta: 0.005,
-                }}
-                pointerEvents="none">
-                <Marker
-                  coordinate={{
-                    latitude: photoLocation.latitude,
-                    longitude: photoLocation.longitude,
-                  }}/>
-              </MapView>
-            </View>
-          )}
-
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={handleSave}
-            disabled={saving || !canSave}
-            accessibilityState={{ disabled: saving || !canSave }}
-            style={[
-              styles.saveButton,
-              {
-                backgroundColor: saving || !canSave ? "#b0b0b0" : "tomato",
-              },
-            ]}>
-            <Text style={styles.saveText}>{t("save", "Save")}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Modal
-          visible={catModalVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setCatModalVisible(false)}>
-          <View style={styles.modalOverlay}>
-            <View
+              placeholderTextColor={placeholderColor}
+              multiline
               style={[
-                styles.modalCard,
-                { backgroundColor: theme.card, borderColor: theme.divider },
-              ]}>
+                styles.input,
+                {
+                  color: inputTextColor,
+                  backgroundColor: theme.card,
+                  borderColor: theme.divider,
+                },
+              ]}/>
+            {errors.description ? (
               <Text
-                style={[
-                  styles.modalTitle,
-                  { color: theme.text, marginBottom: 8 },
-                ]}>
-                {t("select_category", "Select category")}
+                style={[styles.errorText, { color: "tomato", marginTop: 2 }]}>
+                {errors.description}
               </Text>
-              {[
-                {
-                  key: "public_order",
-                  label: t("cat_public_order", "Public order"),
-                },
-                {
-                  key: "traffic",
-                  label: t("cat_traffic", "Traffic violation"),
-                },
-                {
-                  key: "property_damage",
-                  label: t("cat_property_damage", "Property damage"),
-                },
-                { key: "crimes", label: t("cat_crimes", "Crimes") },
-              ].map((c) => (
-                <TouchableOpacity
-                  key={c.key}
-                  style={[
-                    styles.modalItem,
-                    category === c.key && { backgroundColor: "tomato" },
-                  ]}
-                  onPress={() => {
-                    setCategory(c.key);
-                    setCatModalVisible(false);
-                    if (errors.category)
-                      setErrors((s) => ({ ...s, category: "" }));
-                  }}>
-                  <Text
-                    style={{ color: category === c.key ? "#fff" : theme.text }}>
-                    {c.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            ) : null}
+
+            <View style={styles.row}>
               <TouchableOpacity
-                style={[styles.modalItem, { marginTop: 8 }]}
-                onPress={() => setCatModalVisible(false)}>
-                <Text style={{ color: theme.text }}>
-                  {t("cancel", "Cancel")}
+                activeOpacity={0.85}
+                onPress={handlePickImage}
+                style={[
+                  styles.button,
+                  { borderColor: theme.divider, backgroundColor: "tomato" },
+                ]}>
+                <Text style={[styles.buttonText, { color: "#fff" }]}>
+                  {t("take_photo", "Take Photo")}
                 </Text>
               </TouchableOpacity>
+
+              <View
+                style={[
+                  styles.previewBox,
+                  {
+                    borderColor:
+                      themeName === "dark"
+                        ? "rgba(255,255,255,0.9)"
+                        : theme.divider,
+                  },
+                ]}>
+                {photoUri ? (
+                  <Image source={{ uri: photoUri }} style={styles.preview} />
+                ) : (
+                  <Text style={{ color: theme.text, fontSize: 12 }}>
+                    {t("no_photo", "No photo")}
+                  </Text>
+                )}
+              </View>
             </View>
+
+            {photoLocation && photoUri && (
+              <View style={{ marginTop: 12 }}>
+                <Text
+                  style={[styles.label, { color: theme.text, marginBottom: 8 }]}>
+                  {t("location", "Location")}
+                </Text>
+                <MapView
+                  style={styles.mapSmall}
+                  initialRegion={{
+                    latitude: photoLocation.latitude,
+                    longitude: photoLocation.longitude,
+                    latitudeDelta: 0.005,
+                    longitudeDelta: 0.005,
+                  }}
+                  pointerEvents="none">
+                  <Marker
+                    coordinate={{
+                      latitude: photoLocation.latitude,
+                      longitude: photoLocation.longitude,
+                    }}
+                  />
+                </MapView>
+              </View>
+            )}
+
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={handleSave}
+              disabled={saving || !canSave}
+              accessibilityState={{ disabled: saving || !canSave }}
+              style={[
+                styles.saveButton,
+                {
+                  backgroundColor: saving || !canSave ? "#b0b0b0" : "tomato",
+                },
+              ]}>
+              <Text style={styles.saveText}>{t("save", "Save")}</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+          <Modal
+            visible={catModalVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setCatModalVisible(false)}>
+            <View style={styles.modalOverlay}>
+              <View
+                style={[
+                  styles.modalCard,
+                  { backgroundColor: theme.card, borderColor: theme.divider },
+                ]}>
+                <Text
+                  style={[
+                    styles.modalTitle,
+                    { color: theme.text, marginBottom: 8 },
+                  ]}>
+                  {t("select_category", "Select category")}
+                </Text>
+                {[
+                  {
+                    key: "public_order",
+                    label: t("cat_public_order", "Public order"),
+                  },
+                  {
+                    key: "traffic",
+                    label: t("cat_traffic", "Traffic violation"),
+                  },
+                  {
+                    key: "property_damage",
+                    label: t("cat_property_damage", "Property damage"),
+                  },
+                  { key: "crimes", label: t("cat_crimes", "Crimes") },
+                ].map((c) => (
+                  <TouchableOpacity
+                    key={c.key}
+                    style={[
+                      styles.modalItem,
+                      {
+                        borderColor:
+                          themeName === "dark" ? "#e6e6e6" : theme.divider,
+                      },
+                      category === c.key && {
+                        backgroundColor: selectedBg,
+                        borderColor: selectedBg,
+                      },
+                    ]}
+                    onPress={() => {
+                      setCategory(c.key);
+                      setCatModalVisible(false);
+                      if (errors.category)
+                        setErrors((s) => ({ ...s, category: "" }));
+                    }}>
+                    <Text
+                      style={{
+                        color: category === c.key ? "#fff" : theme.text,
+                        fontWeight: category === c.key ? "700" : "400",
+                      }}>
+                      {c.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={[
+                    styles.modalItem,
+                    {
+                      marginTop: 8,
+                      borderColor:
+                        themeName === "dark" ? "#e6e6e6" : theme.divider,
+                    },
+                  ]}
+                  onPress={() => setCatModalVisible(false)}>
+                  <Text style={{ color: theme.text }}>
+                    {t("cancel", "Cancel")}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </>
   );
 };
 

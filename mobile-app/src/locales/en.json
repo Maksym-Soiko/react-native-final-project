@@ -1,4 +1,7 @@
 {
+  "welcome": "Welcome!",
+  "auth_subtitle": "Sign in or create an account",
+  "sign_in": "Sign In",
   "home": "Home",
   "profile": "Profile",
   "language": "Language",
@@ -54,7 +57,7 @@
   "month_names": [ "January", "February", "March", "April", "May", "June", "July", "August", 
   "September", "October", "November", "December"],
   "week_days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-  "login_as_a_guest": "Login as a guest",
+  "sign_in_as_a_guest": "Sign in as a guest",
   "edit_profile": "Edit profile",
   "new_password": "New password (leave empty to keep current)",
   "new_password_short": "New password",
@@ -64,9 +67,14 @@
   "session_expired_title": "Session expired",
   "session_expired_desc": "Please login again",
   "validation_first_last_required": "First and last name are required",
+  "invalid_email": "Invalid email format",
   "validation_credentials_required": "Email and password are required",
   "password_mismatch": "Passwords do not match",
   "saved_successfully": "Saved successfully",
   "saved_successfully_text": "Offense successfully saved",
-  "server_unavailable": "Cannot reach server. Check your internet connection or try again later."
+  "server_unavailable": "Cannot reach server. Check your internet connection or try again later.",
+  "success": "Success",
+  "first_name_too_short": "First name must be at least 2 characters",
+  "last_name_too_short": "Last name must be at least 2 characters",
+  "profile_updated": "Profile updated successfully"
 }

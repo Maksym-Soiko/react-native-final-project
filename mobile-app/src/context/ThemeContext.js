@@ -9,17 +9,23 @@ const THEME_KEY = "app_theme";
 const themes = {
   light: {
     background: "#ffffff",
-    card: "#f6f6f6",
+    surface: "#f8f9fb",
+    card: "#ffffff",
     text: "#111111",
     drawerIcon: "#333333",
-    divider: "#e0e0e0",
+    divider: "#e6e8eb",
+    primary: "tomato",
+    shadowColor: "#000000",
   },
   dark: {
-    background: "#121212",
-    card: "#1e1e1e",
+    background: "#0b0b0b",
+    surface: "#121212",
+    card: "#1b1b1b",
     text: "#ffffff",
     drawerIcon: "#ffffff",
-    divider: "#2c2c2c",
+    divider: "#2b2b2b",
+    primary: "tomato",
+    shadowColor: "#000000",
   },
 };
 
@@ -79,7 +85,8 @@ export const ThemeProvider = ({ children }) => {
   };
 
   return (
-    <ThemeContext.Provider value={{ themeName, theme, toggleTheme, loaded }}>
+    <ThemeContext.Provider
+      value={{ themeName, theme, toggleTheme, loaded, themes }}>
       {children}
     </ThemeContext.Provider>
   );

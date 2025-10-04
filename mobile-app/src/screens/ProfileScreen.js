@@ -1,30 +1,35 @@
-import React, { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Alert,
-    KeyboardAvoidingView, Platform, ScrollView, SafeAreaView } from "react-native";
+  KeyboardAvoidingView, Platform, ScrollView, SafeAreaView, StatusBar } from "react-native";
 import { ThemeContext } from "../context/ThemeContext";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { getUser, updateUser } from "../api/userApi";
+import { Portal, Dialog, Button, Paragraph } from "react-native-paper";
 
 const ProfileScreen = () => {
   const { theme, themeName } = useContext(ThemeContext);
   const { t } = useTranslation();
-  const { user, setUser, logout } = useAuth();
+  const { user, setUser } = useAuth();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [currentInfo, setCurrentInfo] = useState({ firstName: "", lastName: "", email: "" });
+  const [currentInfo, setCurrentInfo] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+  });
   const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [firstNameError, setFirstNameError] = useState("");
+  const [lastNameError, setLastNameError] = useState("");
 
   function extractInfo(u) {
-    const info =
-      u?.user ??
-      u?.data ??
-      u?.profile ??
-      u;
+    const info = u?.user ?? u?.data ?? u?.profile ?? u;
     return info || {};
   }
 
@@ -90,9 +95,9 @@ const ProfileScreen = () => {
           if (user) {
             setUser((prev) => {
               const source = prev ?? user;
-              const base = { ...(source) };
+              const base = { ...source };
               if (base.user) {
-                base.user = { ...(base.user), ...(info) };
+                base.user = { ...base.user, ...info };
               } else {
                 Object.assign(base, info);
               }
@@ -105,7 +110,10 @@ const ProfileScreen = () => {
         if (status === 404) {
           console.warn("User not found on server (404)", id);
         } else {
-          console.warn("Failed to fetch user from server:", err?.message ?? err);
+          console.warn(
+            "Failed to fetch user from server:",
+            err?.message ?? err
+          );
         }
       } finally {
         if (mounted) setLoading(false);
@@ -126,30 +134,46 @@ const ProfileScreen = () => {
   const placeholderColor = isDark ? "#8f99a6" : "#999";
   const avatarShadowColor = isDark ? "rgba(0,0,0,0.6)" : primary + "33";
 
-  const initials = `${(currentInfo.firstName || "").trim().charAt(0) || ""}${(currentInfo.lastName || "").trim().charAt(0) || ""}`.toUpperCase();
+  const initials = `${(currentInfo.firstName || "").trim().charAt(0) || ""}${
+    (currentInfo.lastName || "").trim().charAt(0) || ""
+  }`.toUpperCase();
 
-  const fullNewPasswordText = t("new_password", "New password (leave empty to keep current)");
+  const fullNewPasswordText = t(
+    "new_password",
+    "New password (leave empty to keep current)"
+  );
   const shortNewPasswordText = t("new_password_short", "New password");
   const PLACEHOLDER_MAX_LEN = 30;
   const placeholderForNewPassword =
-    typeof fullNewPasswordText === "string" && fullNewPasswordText.length <= PLACEHOLDER_MAX_LEN
+    typeof fullNewPasswordText === "string" &&
+    fullNewPasswordText.length <= PLACEHOLDER_MAX_LEN
       ? fullNewPasswordText
       : shortNewPasswordText;
 
   const validate = () => {
+    let ok = true;
+    setFirstNameError("");
+    setLastNameError("");
     if (!firstName || firstName.trim().length < 2) {
-      Alert.alert(t("validation_error", "Validation error"), t("first_name_too_short", "First name must be at least 2 characters"));
-      return false;
+      setFirstNameError(
+        t("first_name_too_short", "First name must be at least 2 characters")
+      );
+      ok = false;
     }
     if (!lastName || lastName.trim().length < 2) {
-      Alert.alert(t("validation_error", "Validation error"), t("last_name_too_short", "Last name must be at least 2 characters"));
-      return false;
+      setLastNameError(
+        t("last_name_too_short", "Last name must be at least 2 characters")
+      );
+      ok = false;
     }
     if (password && password.length < 6) {
-      Alert.alert(t("validation_error", "Validation error"), t("password_too_short", "Password must be at least 6 characters"));
+      Alert.alert(
+        t("validation_error", "Validation error"),
+        t("password_too_short", "Password must be at least 6 characters")
+      );
       return false;
     }
-    return true;
+    return ok;
   };
 
   const handleSave = async () => {
@@ -158,7 +182,10 @@ const ProfileScreen = () => {
     const token = getToken();
     const idToUse = resolveServerId(id);
     if (!idToUse || !token) {
-      Alert.alert(t("error", "Error"), t("not_authenticated", "You are not authenticated"));
+      Alert.alert(
+        t("error", "Error"),
+        t("not_authenticated", "You are not authenticated")
+      );
       return;
     }
 
@@ -174,8 +201,10 @@ const ProfileScreen = () => {
 
       const updatedInfo = (updated?.user ?? updated) || {};
       setCurrentInfo({
-        firstName: updatedInfo.firstName ?? updatedInfo.first_name ?? firstName.trim(),
-        lastName: updatedInfo.lastName ?? updatedInfo.last_name ?? lastName.trim(),
+        firstName:
+          updatedInfo.firstName ?? updatedInfo.first_name ?? firstName.trim(),
+        lastName:
+          updatedInfo.lastName ?? updatedInfo.last_name ?? lastName.trim(),
         email: updatedInfo.email ?? email,
       });
 
@@ -185,18 +214,19 @@ const ProfileScreen = () => {
             const tokenValue = token ? { token } : {};
             return { ...(updated?.user ?? updated), ...tokenValue };
           }
-          const base = { ...(prev) };
+          const base = { ...prev };
           if (base.user) {
-            base.user = { ...(base.user), ...(updated?.user ?? updated) };
+            base.user = { ...base.user, ...(updated?.user ?? updated) };
           } else {
-            Object.assign(base, (updated?.user ?? updated));
+            Object.assign(base, updated?.user ?? updated);
           }
           return base;
         });
       }
 
       setPassword("");
-      Alert.alert(t("success", "Success"), t("profile_updated", "Profile updated successfully"));
+      setSuccessMessage(t("profile_updated", "Profile updated successfully"));
+      setSuccessModalVisible(true);
     } catch (err) {
       const status = err?.response?.status;
       if (status === 404) {
@@ -212,116 +242,205 @@ const ProfileScreen = () => {
 
   if (loading) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.background ?? (isDark ? "#000" : "#fff") }]}>
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: theme.background ?? (isDark ? "#000" : "#fff") },
+        ]}
+      >
         <ActivityIndicator size="large" color={primary} />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background ?? (isDark ? "#000" : "#fff") }]}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View
-            style={[
-              styles.headerCard,
-              {
-                backgroundColor: cardBg,
-                borderColor,
-                shadowColor: isDark ? "#000" : "#000",
-              },
-            ]}>
-            <View style={styles.avatarRow}>
-              <View
-                style={[
-                  styles.avatar,
-                  {
-                    backgroundColor: primary,
-                    shadowColor: avatarShadowColor,
-                  },
-                ]}>
-                <Text style={styles.avatarText}>{initials || "?"}</Text>
-              </View>
-              <View style={styles.headerInfo}>
-                <Text style={[styles.nameText, { color: theme?.text ?? (isDark ? "#fff" : "#111") }]}>{`${currentInfo.firstName} ${currentInfo.lastName}`.trim() || t("no_name", "No name")}</Text>
-                <Text style={[styles.emailText, { color: subText }]}>{currentInfo.email || ""}</Text>
+    <>
+      <Portal>
+        <Dialog
+          visible={successModalVisible}
+          onDismiss={() => setSuccessModalVisible(false)}
+          style={{
+            backgroundColor: cardBg,
+            borderRadius: 12,
+            marginHorizontal: 24,
+          }}>
+          <Dialog.Title style={{ color: theme.text, fontWeight: "700" }}>
+            {t("success", "Success")}
+          </Dialog.Title>
+          <Dialog.Content>
+            <Paragraph style={{ color: theme.text }}>
+              {successMessage}
+            </Paragraph>
+          </Dialog.Content>
+          <Dialog.Actions style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
+            <Button
+              mode="contained"
+              onPress={() => setSuccessModalVisible(false)}
+              contentStyle={{
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                borderRadius: 8,
+              }}
+              style={{ backgroundColor: primary }}
+              labelStyle={{ color: "#fff", fontWeight: "700" }}
+              uppercase={false}>
+              OK
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+      <StatusBar
+        barStyle={isDark ? "light-content" : "dark-content"}
+        backgroundColor={cardBg}
+      />
+      <SafeAreaView
+        style={[
+          styles.safe,
+          { backgroundColor: theme.background ?? (isDark ? "#000" : "#fff") },
+        ]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.flex}>
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            keyboardShouldPersistTaps="handled">
+            <View
+              style={[
+                styles.headerCard,
+                {
+                  backgroundColor: cardBg,
+                  borderColor,
+                  shadowColor: isDark ? "#000" : "#000",
+                },
+              ]}>
+              <View style={styles.avatarRow}>
+                <View
+                  style={[
+                    styles.avatar,
+                    {
+                      backgroundColor: primary,
+                      shadowColor: avatarShadowColor,
+                    },
+                  ]}>
+                  <Text style={styles.avatarText}>{initials || "?"}</Text>
+                </View>
+                <View style={styles.headerInfo}>
+                  <Text
+                    style={[
+                      styles.nameText,
+                      { color: theme?.text ?? (isDark ? "#fff" : "#111") },
+                    ]}>
+                    {`${currentInfo.firstName} ${currentInfo.lastName}`.trim() ||
+                      t("no_name", "No name")}
+                  </Text>
+                  <Text style={[styles.emailText, { color: subText }]}>
+                    {currentInfo.email || ""}
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          <View style={[styles.formCard, { backgroundColor: cardBg, borderColor }]}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>{t("edit_profile", "Edit profile")}</Text>
-
-            <Text style={[styles.label, { color: subText }]}>{t("first_name", "First name")}</Text>
-            <TextInput
-              style={[styles.input, { borderColor, color: theme?.text ?? (isDark ? "#fff" : "#111"), backgroundColor: inputBackground }]}
-              value={firstName}
-              onChangeText={setFirstName}
-              placeholder={t("first_name", "First name")}
-              placeholderTextColor={placeholderColor}/>
-
-            <Text style={[styles.label, { color: subText }]}>{t("last_name", "Last name")}</Text>
-            <TextInput
-              style={[styles.input, { borderColor, color: theme?.text ?? (isDark ? "#fff" : "#111"), backgroundColor: inputBackground }]}
-              value={lastName}
-              onChangeText={setLastName}
-              placeholder={t("last_name", "Last name")}
-              placeholderTextColor={placeholderColor}/>
-
-            <Text style={[styles.label, { color: subText }]}>{t("email", "Email")}</Text>
-            <TextInput
-              style={[styles.inputDisabled, { borderColor, color: theme?.text ?? (isDark ? "#fff" : "#111"), backgroundColor: inputBackground }]}
-              value={email}
-              editable={false}
-              placeholderTextColor={placeholderColor}/>
-
-            <Text style={[styles.label, { color: subText }]}>{t("password", "Password")}</Text>
-            <TextInput
-              style={[styles.input, { borderColor, color: theme?.text ?? (isDark ? "#fff" : "#111"), backgroundColor: inputBackground }]}
-              value={password}
-              onChangeText={setPassword}
-              placeholder={placeholderForNewPassword}
-              placeholderTextColor={placeholderColor}
-              secureTextEntry/>
-
-            <TouchableOpacity
+            <View
               style={[
-                styles.saveButton,
-                { backgroundColor: saving ? "#666" : primary, opacity: saving ? 0.9 : 1 },
-              ]}
-              onPress={handleSave}
-              disabled={saving}>
-              {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>{t("save", "Save")}</Text>}
-            </TouchableOpacity>
+                styles.formCard,
+                { backgroundColor: cardBg, borderColor },
+              ]}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                {t("edit_profile", "Edit profile")}
+              </Text>
 
-            <TouchableOpacity
-              style={[
-                styles.logoutButton,
-                { borderColor: borderColor, backgroundColor: "transparent" },
-              ]}
-              onPress={() =>
-                Alert.alert(
-                  t("logout", "Logout"),
-                  t("logout_confirm", "Are you sure you want to logout?"),
-                  [
-                    { text: t("cancel", "Cancel"), style: "cancel" },
-                    {
-                      text: t("logout", "Logout"),
-                      style: "destructive",
-                      onPress: () => {
-                        if (logout) logout();
-                      },
-                    },
-                  ],
-                  { cancelable: true }
-                )
-              }>
-              <Text style={[styles.logoutText, { color: theme?.text ?? (isDark ? "#fff" : "#111") }]}>{t("logout", "Logout")}</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              <Text style={[styles.label, { color: subText }]}>
+                {t("first_name", "First name")}
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    borderColor,
+                    color: theme?.text ?? (isDark ? "#fff" : "#111"),
+                    backgroundColor: inputBackground,
+                  },
+                ]}
+                value={firstName}
+                onChangeText={(v) => {
+                  setFirstName(v);
+                  if (firstNameError && v.trim().length >= 2)
+                    setFirstNameError("");
+                }}
+                placeholder={t("first_name", "First name")}
+                placeholderTextColor={placeholderColor}
+              />
+              {firstNameError ? (
+                <Text style={{ color: "tomato", marginTop: 6, fontSize: 13 }}>
+                  {firstNameError}
+                </Text>
+              ) : null}
+
+              <Text style={[styles.label, { color: subText }]}>
+                {t("last_name", "Last name")}
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    borderColor,
+                    color: theme?.text ?? (isDark ? "#fff" : "#111"),
+                    backgroundColor: inputBackground,
+                  },
+                ]}
+                value={lastName}
+                onChangeText={(v) => {
+                  setLastName(v);
+                  if (lastNameError && v.trim().length >= 2)
+                    setLastNameError("");
+                }}
+                placeholder={t("last_name", "Last name")}
+                placeholderTextColor={placeholderColor}/>
+              {lastNameError ? (
+                <Text style={{ color: "tomato", marginTop: 6, fontSize: 13 }}>
+                  {lastNameError}
+                </Text>
+              ) : null}
+
+              <Text style={[styles.label, { color: subText }]}>
+                {t("password", "Password")}
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    borderColor,
+                    color: theme?.text ?? (isDark ? "#fff" : "#111"),
+                    backgroundColor: inputBackground,
+                  },
+                ]}
+                value={password}
+                onChangeText={setPassword}
+                placeholder={placeholderForNewPassword}
+                placeholderTextColor={placeholderColor}
+                secureTextEntry/>
+
+              <TouchableOpacity
+                style={[
+                  styles.saveButton,
+                  {
+                    backgroundColor: saving ? "#666" : primary,
+                    opacity: saving ? 0.9 : 1,
+                  },
+                ]}
+                onPress={handleSave}
+                disabled={saving}>
+                {saving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>{t("save", "Save")}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </>
   );
 };
 
@@ -358,7 +477,11 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1 },
   nameText: { fontSize: 18, fontWeight: "700", marginBottom: 2 },
   emailText: { fontSize: 14 },
-  metaRow: { marginTop: 12, flexDirection: "row", justifyContent: "space-between" },
+  metaRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
   metaLabel: { fontSize: 12 },
 
   formCard: {
@@ -396,16 +519,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveButtonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
-
-  logoutButton: {
-    marginTop: 12,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: "center",
-    borderWidth: 1,
-    backgroundColor: "transparent",
-  },
-  logoutText: { fontSize: 15 },
 
   muted: { fontSize: 12, marginBottom: 6, color: "#666" },
 });
